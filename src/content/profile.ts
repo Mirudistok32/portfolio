@@ -2,7 +2,7 @@
 
 export const SITE = {
   /** Адрес, где будет жить сайт. Нужен для canonical, sitemap и Open Graph. */
-  url: 'https://mirudistok32.github.io/portfolio-v2/',
+  url: 'https://mirudistok32.github.io/portfolio/',
   name: 'Станислав Постников',
   role: 'Senior Frontend-разработчик',
   title: 'Станислав Постников — Senior Frontend-разработчик (Next.js, React, TypeScript)',

@@ -21,6 +21,9 @@ npm run build
 Затем откройте **`out/index.html`** двойным кликом — сервер не нужен. Эта же папка `out/` целиком
 выкладывается на любой статический хостинг (GitHub Pages, Vercel, Netlify, Яндекс Облако).
 
+Сайт живёт на https://mirudistok32.github.io/portfolio/. Каждый пуш в `master` пересобирает и публикует
+его через GitHub Actions (`.github/workflows/deploy.yml`, в настройках Pages источник — «GitHub Actions»).
+
 Для разработки с горячей перезагрузкой: `npm run dev` и http://localhost:3000.
 
 ## Команды
