@@ -15,5 +15,5 @@ Next.js, React, TypeScript, MobX, Zustand, Redux, GraphQL, REST, Storybook, Jest
 
 ## Контакты
 - Почта: mirudistok32@yandex.ru
-- Telegram: https://t.me/mirudistok
+- Telegram: https://t.me/postnikov_st
 - GitHub: https://github.com/mirudistok32

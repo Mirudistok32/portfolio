@@ -10,7 +10,7 @@ export const SITE = {
     'Senior Frontend-разработчик из Санкт-Петербурга: Next.js, React, TypeScript. 8 лет коммерческого опыта, UI-библиотеки, производительность, SEO и AI-assisted разработка. Рассматриваю предложения.',
   city: 'Санкт-Петербург',
   email: 'mirudistok32@yandex.ru',
-  telegram: 'mirudistok',
+  telegram: 'postnikov_st',
   github: 'mirudistok32',
   /** PDF из public/. Если поставить null, кнопка станет «Запросить резюме» и поведёт в Telegram. */
   cv: 'postnikov-cv.pdf' as string | null,
