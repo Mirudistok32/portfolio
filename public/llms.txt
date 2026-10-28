@@ -1,0 +1,19 @@
+# Станислав Постников — Senior Frontend-разработчик
+
+> Санкт-Петербург. 8 лет 5 месяцев коммерческой разработки. Next.js, React, TypeScript. Рассматриваю предложения: офис или удалённо, полная, частичная занятость или проектная работа.
+
+## Опыт
+- SimbirSoft, Senior Frontend (2024 — сейчас): сайт девелопера премиальной недвижимости, 18 промо-сайтов ЖК, онлайн-подбор квартир. Общий компонент Яндекс-карты в UI-библиотеке (−18 000 строк), миграция на Next.js 15, GSAP-анимации, AI-агенты и MCP для команды, менторство.
+- Звук (ex-СберЗвук), Middle Frontend (2021 — 2024): clickstream-аналитика на Protobuf, аудиоплеер, интеграции GA и Яндекс Метрики.
+- SimbirSoft, Middle Frontend (2020 — 2021): архитектура внутренней соцсети, лид команды.
+- ABBYY, Middle Frontend (2020): приложение распознавания документов.
+- Учёт рабочего времени, Middle Frontend (2019).
+- Фриланс, верстальщик (2018 — 2019).
+
+## Стек
+Next.js, React, TypeScript, MobX, Zustand, Redux, GraphQL, REST, Storybook, Jest, Vitest, GSAP, Electron, Docker, SEO (JSON-LD, Open Graph), Claude Code, Cursor, MCP.
+
+## Контакты
+- Почта: mirudistok32@yandex.ru
+- Telegram: https://t.me/mirudistok
+- GitHub: https://github.com/mirudistok32
