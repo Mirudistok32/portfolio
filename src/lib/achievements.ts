@@ -192,6 +192,13 @@ export const ACHIEVEMENTS: Achievement[] = [
 ];
 
 export const SECRET_IDS = ACHIEVEMENTS.filter((a) => a.hint).map((a) => a.id);
+
+/** Как ачивка выглядит в панели: секретная до открытия — «???» и подсказка вместо условия. */
+export function cardOf(a: Achievement, got: boolean) {
+  return !got && a.hint
+    ? { icon: '?', title: '???', desc: a.hint }
+    : { icon: a.icon, title: a.title, desc: a.desc };
+}
 /** Звери в пейзаже: все вместе дают «Зоолога». */
 const ZOO_IDS = ['wolf', 'owl', 'hedgehog', 'cow', 'bees', 'pigeon'];
 
@@ -259,7 +266,9 @@ export function unlock(id: string, quiet = false) {
     id !== 'final' &&
     ACHIEVEMENTS.every((x) => x.id === 'final' || achStore.get().got.includes(x.id))
   ) {
+    // сюда же приходят вложенные unlock (зоолог, невидимка) — «Легенда» и конфетти только раз
     setTimeout(() => {
+      if (achStore.get().got.includes('final')) return;
       unlock('final');
       confetti();
     }, 900);

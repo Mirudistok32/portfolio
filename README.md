@@ -21,8 +21,8 @@ npm run build
 Затем откройте **`out/index.html`** двойным кликом — сервер не нужен. Эта же папка `out/` целиком
 выкладывается на любой статический хостинг (GitHub Pages, Vercel, Netlify, Яндекс Облако).
 
-Сайт живёт на https://mirudistok32.github.io/portfolio/. Каждый пуш в `master` пересобирает и публикует
-его через GitHub Actions (`.github/workflows/deploy.yml`, в настройках Pages источник — «GitHub Actions»).
+Сайт живёт на https://mirudistok32.github.io/portfolio/. Каждый пуш в `master` проверяет (`npm run check`), пересобирает и
+публикует его через GitHub Actions (`.github/workflows/deploy.yml`, в настройках Pages источник — «GitHub Actions»).
 
 Для разработки с горячей перезагрузкой: `npm run dev` и http://localhost:3000.
 
@@ -35,8 +35,11 @@ npm run preview        # посмотреть out/ через локальный
 npm run typecheck      # TypeScript
 npm run lint           # ESLint (правила Next.js + сортировка импортов)
 npm run contrast       # проверка контраста текста по WCAG AA
+npm run test           # юнит-тесты (Vitest): ачивки и хранилища
+npm run shots          # снимки out/ в .screenshots/: 3 вкладки × 4 времени года × 390/1280
 npm run format         # Prettier
-npm run check          # всё сразу: типы, линтер, контраст, формат
+npm run check          # всё сразу: типы, линтер, контраст, формат, юнит-тесты
+npm run check:full     # check + сборка и e2e (Playwright по file://, 390 px и ноутбук)
 ```
 
 ## Стек
@@ -55,9 +58,12 @@ src/
   components/     Shell (вкладки и время суток), страницы, часы, ачивки, XP-шкала, медальон
     scene/        draw.ts — статичные слои пейзажа, engine.ts — анимация и тайники, fauna.ts — звери
   lib/            хранилища, ачивки, тосты, копирование, эффекты
+tests/unit/        юнит-тесты логики (ачивки, хранилища)
+tests/e2e/         e2e по out/index.html с диска
 scripts/
   prepare-static.mjs  пост-обработка out/ (см. ниже)
   contrast.mjs        проверка контраста
+  shots.mjs           скриншоты и проверка консоли и прокрутки
 public/           og.png (превью для соцсетей), llms.txt (сводка для ИИ-ассистентов рекрутеров)
 ```
 

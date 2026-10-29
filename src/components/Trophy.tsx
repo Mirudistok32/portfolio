@@ -6,6 +6,7 @@ import {
   type Achievement,
   ACHIEVEMENTS,
   achStore,
+  cardOf,
   resetAchievements,
   SECRET_IDS,
 } from '@/lib/achievements';
@@ -15,15 +16,15 @@ import { setPanelOpen, uiStore } from '@/lib/ui';
 import { TrophyIcon } from './icons';
 
 function Item({ a, got }: { a: Achievement; got: boolean }) {
-  const hidden = !got && a.hint;
+  const card = cardOf(a, got);
   return (
     <li className={got ? 'ach' : 'ach locked'}>
       <span className="ach-ic" aria-hidden="true">
-        {hidden ? '?' : a.icon}
+        {card.icon}
       </span>
       <span>
-        <b>{hidden ? '???' : a.title}</b>
-        <small>{hidden ? a.hint : a.desc}</small>
+        <b>{card.title}</b>
+        <small>{card.desc}</small>
       </span>
     </li>
   );

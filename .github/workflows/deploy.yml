@@ -1,4 +1,4 @@
-# Сборка и публикация на GitHub Pages при каждом пуше в master.
+# Проверки, сборка и публикация на GitHub Pages при каждом пуше в master.
 # В настройках репозитория: Settings → Pages → Source: GitHub Actions.
 name: Deploy to GitHub Pages
 
@@ -26,6 +26,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # типы, линтер, контраст и формат — красный гейт не публикуется
+      - run: npm run check
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
