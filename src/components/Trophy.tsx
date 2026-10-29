@@ -83,6 +83,7 @@ export function Trophy() {
         aria-expanded={panelOpen}
         aria-controls="ach-panel"
         aria-label={`Ачивки: ${got.length} из ${ACHIEVEMENTS.length}`}
+        title="Ачивки: на сайте спрятаны секреты, кубок считает найденные"
         onClick={() => setPanelOpen(!panelOpen)}
       >
         <TrophyIcon />

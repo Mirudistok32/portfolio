@@ -1,4 +1,7 @@
-import { CvButton, TrackedLink } from '@/components/Actions';
+import Image from 'next/image';
+
+import avatar from '@/assets/avatar.webp';
+import { TrackedLink } from '@/components/Actions';
 import { ContactLinks, HrCard } from '@/components/ContactCards';
 import { Portrait } from '@/components/Portrait';
 import { RotWord } from '@/components/RotWord';
@@ -10,27 +13,28 @@ export function About() {
     <div className="wrap home">
       <div className="home-top">
         <div className="hero glass" data-s>
-          <p className="eyebrow">
+          {/* имя, роль и статус — одна строка; на узком экране, где большое фото уходит вниз, рядом маленькое */}
+          <div className="who">
+            <Image className="who-ava" src={avatar} alt="" sizes="48px" />
+            <TrackedLink
+              achievement="window"
+              className="who-name"
+              href={`https://github.com/${SITE.github}`}
+            >
+              <b>{SITE.name}</b>
+              <span>{SITE.roleShort}</span>
+            </TrackedLink>
             <span className="status">
               <i aria-hidden="true" />
-              Рассматриваю предложения
+              Открыт к предложениям
             </span>
-            <span>{SITE.city} · офис или удалённо</span>
-          </p>
-          <TrackedLink
-            achievement="window"
-            className="who"
-            href={`https://github.com/${SITE.github}`}
-          >
-            <b>{SITE.name}</b>
-            <span>{SITE.role}</span>
-          </TrackedLink>
+          </div>
           <h1 id="page-about-title">
             Делаю интерфейсы, которые <RotWord />
           </h1>
           <p className="lead">
-            Восемь лет пишу интерфейсы, последние годы на Next.js, React и TypeScript:
-            UI-библиотеки, производительность, SEO.
+            Пишу на Next.js, React и TypeScript: собираю UI-библиотеки, ускоряю загрузку страниц и
+            настраиваю SEO.
           </p>
           <div className="actions">
             <a className="btn btn-accent" href="#experience">
@@ -39,7 +43,10 @@ export function About() {
                 →
               </span>
             </a>
-            <CvButton className="btn" />
+            {/* резюме уже в шапке, здесь — самое нужное HR действие */}
+            <TrackedLink achievement="tg" className="btn" href={`https://t.me/${SITE.telegram}`}>
+              Написать в Telegram
+            </TrackedLink>
           </div>
           <ul className="facts">
             {FACTS.map((f) => (

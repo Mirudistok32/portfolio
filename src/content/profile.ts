@@ -5,6 +5,8 @@ export const SITE = {
   url: 'https://mirudistok32.github.io/portfolio/',
   name: 'Станислав Постников',
   role: 'Senior Frontend-разработчик',
+  /** Роль в строке с именем на витрине: коротко, чтобы имя, роль и статус встали в одну строку. */
+  roleShort: 'Senior Frontend',
   title: 'Станислав Постников — Senior Frontend-разработчик (Next.js, React, TypeScript)',
   description:
     'Senior Frontend-разработчик из Санкт-Петербурга: Next.js, React, TypeScript. 8 лет коммерческого опыта, UI-библиотеки, производительность, SEO и AI-assisted разработка. Рассматриваю предложения.',
@@ -24,9 +26,10 @@ export const PAGES = [
 
 export const ROT_WORDS = ['грузятся быстро', 'не бесят', 'работают везде', 'хвалят на ревью'];
 
+/** Цифры под первым экраном. Стек и уровень уже есть в строке с именем и в подзаголовке, здесь их не повторяем. */
 export const FACTS = [
   { value: '8 лет 5 мес', label: 'в коммерческой разработке' },
-  { value: 'Senior', label: 'Next.js · React · TypeScript' },
+  { value: '−18 000 строк', label: 'дублирующего кода' },
   { value: 'AI-assisted', label: 'Claude Code, Cursor, MCP' },
 ];
 

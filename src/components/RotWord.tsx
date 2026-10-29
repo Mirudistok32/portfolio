@@ -5,7 +5,10 @@ import { useEffect, useRef } from 'react';
 import { ROT_WORDS } from '@/content/profile';
 import { uiStore } from '@/lib/ui';
 
-/** Меняющееся слово в заголовке. Высота заголовка закреплена по самому длинному варианту, чтобы текст ниже не прыгал. */
+/**
+ * Меняющееся слово в заголовке: один круг по вариантам и остановка на первом, дальше заголовок не отвлекает от чтения.
+ * Высота заголовка закреплена по самому длинному варианту, чтобы текст ниже не прыгал.
+ */
 export function RotWord() {
   const ref = useRef<HTMLSpanElement>(null);
 
@@ -37,6 +40,7 @@ export function RotWord() {
     const id = setInterval(() => {
       if (document.hidden || uiStore.get().page !== 0) return;
       i = (i + 1) % ROT_WORDS.length;
+      if (i === 0) clearInterval(id);
       if (reduce) {
         word.textContent = ROT_WORDS[i];
         return;
@@ -68,7 +72,7 @@ export function RotWord() {
           out.cancel();
         })
         .catch(() => {});
-    }, 2800);
+    }, 4000);
 
     return () => {
       clearInterval(id);

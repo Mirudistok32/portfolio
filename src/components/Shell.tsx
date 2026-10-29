@@ -68,8 +68,10 @@ const pageAnimations = (section: HTMLElement) =>
  */
 export function Shell({ pages }: { pages: ReactNode[] }) {
   const [page, setPage] = useState(0);
-  // Подсказка про стрелки нужна один раз: прячется после первого перехода, прокрутки или через 10 секунд
-  const [hint, setHint] = useState(true);
+  // Подсказка про стрелки нужна один раз: прячется после первого перехода, прокрутки или через 10 секунд.
+  // До скриптов её нет: сначала надо проверить, что она не ляжет на карточку.
+  const [hint, setHint] = useState(false);
+  const hintRef = useRef<HTMLParagraphElement>(null);
   const cur = useRef(-1);
   const sections = useRef<(HTMLElement | null)[]>([]);
   const tabsRef = useRef<HTMLElement>(null);
@@ -170,7 +172,20 @@ export function Shell({ pages }: { pages: ReactNode[] }) {
     // «Обо мне» уже нарисована из HTML до загрузки скриптов: анимация с нуля её бы мигнула
     // (и спрятала бы LCP). Въезжает только страница, открытая по ссылке, — её до этого не было видно.
     if (cur.current !== 0 && !reduced()) enter(sections.current[cur.current]!, 1);
-    requestAnimationFrame(() => tabsRef.current?.classList.add('ready'));
+    requestAnimationFrame(() => {
+      tabsRef.current?.classList.add('ready');
+      // Подсказка в углу не должна закрывать текст: если там уже карточка, обойдёмся без неё
+      const el = hintRef.current;
+      if (!el) return;
+      el.hidden = false;
+      const r = el.getBoundingClientRect();
+      el.hidden = true;
+      const covers = [...sections.current[cur.current]!.querySelectorAll(GLASS)].some((g) => {
+        const b = g.getBoundingClientRect();
+        return b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top;
+      });
+      if (r.width && !covers) setHint(true);
+    });
 
     // Первая ачивка открывается молча: всплывашка на первом экране закрывала бы контент
     unlock('welcome', true);
@@ -306,7 +321,7 @@ export function Shell({ pages }: { pages: ReactNode[] }) {
           ))}
         </main>
       </div>
-      <p className="hint solid" aria-hidden="true" hidden={!hint}>
+      <p className="hint solid" ref={hintRef} aria-hidden="true" hidden={!hint}>
         <kbd>←</kbd>
         <kbd>→</kbd> листать время суток
       </p>

@@ -648,25 +648,9 @@ h3 {
   white-space: nowrap;
 }
 
-.clock-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.2;
-}
-
 .clock b {
   color: var(--gold);
   font-variant-numeric: tabular-nums;
-}
-
-.clock small {
-  color: var(--ink-3);
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.clock .sep {
-  color: var(--ink-3);
 }
 
 .flame {
@@ -977,27 +961,60 @@ h3 {
   gap: 18px;
 }
 
-.eyebrow {
+/* имя, роль и статус — одна строка над заголовком; маленькое фото появляется, когда большое уходит вниз */
+.who {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  margin: 0;
+  gap: 10px 16px;
+}
+
+.who-ava {
+  display: none;
+  width: 48px;
+  height: 48px;
+  border: 2px solid var(--glass-line);
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.who-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
   color: var(--ink-2);
-  font-size: 15px;
-  font-weight: 600;
-  gap: 8px 18px;
+  font-size: 16px;
+  gap: 2px 12px;
+  text-decoration: none;
+}
+
+.who-name b {
+  color: var(--ink);
+  font-size: clamp(19px, 1.6vw, 21px);
+  transition: color 0.2s;
+}
+
+.who-name:hover b {
+  color: var(--gold);
 }
 
 .status {
   display: inline-flex;
   align-items: center;
+  padding: 4px 12px;
+  border: 1px solid rgb(168 227 143 / 0.35);
+  border-radius: 999px;
+  background: rgb(168 227 143 / 0.08);
   color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
   gap: 8px;
+  white-space: nowrap;
 }
 
 .status i {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   animation: ping 2.2s ease-out infinite;
   background: var(--moss);
@@ -1011,28 +1028,6 @@ h3 {
   100% {
     box-shadow: 0 0 0 9px rgb(147 217 119 / 0);
   }
-}
-
-.who {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  margin: 0;
-  color: var(--ink-2);
-  font-size: 16px;
-  gap: 2px 12px;
-  text-decoration: none;
-  width: fit-content;
-}
-
-.who b {
-  color: var(--ink);
-  font-size: clamp(19px, 1.6vw, 21px);
-  transition: color 0.2s;
-}
-
-.who:hover b {
-  color: var(--gold);
 }
 
 .hero h1 {
@@ -1180,15 +1175,9 @@ h3 {
 }
 
 .f2 {
-  top: 46%;
+  bottom: 12%;
   right: -16%;
-  animation-delay: -1s;
-}
-
-.f3 {
-  bottom: 8%;
-  left: -12%;
-  animation-delay: -2s;
+  animation-delay: -1.5s;
 }
 
 .bubble {
@@ -1940,6 +1929,19 @@ a.link:hover {
     width: min(200px, 55%);
   }
 
+  /* большое фото ушло под первый экран: рядом с именем маленькое, статус — строкой ниже */
+  .who {
+    display: grid;
+    justify-items: start;
+    gap: 6px 14px;
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .who-ava {
+    display: block;
+    grid-row: span 2;
+  }
+
   /* блоком, а не сеткой: у элемента сетки липкость ограничена его ячейкой */
   .quests {
     display: block;
@@ -1984,10 +1986,11 @@ a.link:hover {
     grid-template-columns: 1fr auto;
   }
 
+  /* справа от панели остаётся место под медальон */
   .tabs {
     position: fixed;
     z-index: 20;
-    right: calc(12px + env(safe-area-inset-right, 0px));
+    right: calc(64px + env(safe-area-inset-right, 0px));
     bottom: calc(26px + env(safe-area-inset-bottom, 0px));
     left: calc(12px + env(safe-area-inset-left, 0px));
   }
@@ -2013,10 +2016,10 @@ a.link:hover {
     display: none;
   }
 
-  /* над нижней панелью вкладок, у правого края */
+  /* в одном ряду с нижней панелью вкладок: над текстом он закрывал бы правый край страницы */
   .medal {
-    right: calc(14px + env(safe-area-inset-right, 0px));
-    bottom: calc(112px + env(safe-area-inset-bottom, 0px));
+    right: calc(12px + env(safe-area-inset-right, 0px));
+    bottom: calc(38px + env(safe-area-inset-bottom, 0px));
   }
 
   .toast-slot {
@@ -2032,7 +2035,7 @@ a.link:hover {
     right: 12px;
   }
 
-  /* над нижней панелью вкладок и над обычным тостом, слева от медальона */
+  /* над нижней панелью вкладок и над обычным тостом */
   .ach-toasts {
     top: auto;
     right: auto;
@@ -2040,12 +2043,7 @@ a.link:hover {
     left: calc(12px + env(safe-area-inset-left, 0px));
   }
 
-  .ach-toast {
-    max-width: calc(100vw - 84px);
-  }
-
-  .f1,
-  .f3 {
+  .f1 {
     left: -24%;
   }
 
@@ -2055,6 +2053,22 @@ a.link:hover {
 }
 
 @media (width <= 560px) {
+  /* в шапке остаются кубок и резюме; часы работы есть на «Контактах» */
+  .clock {
+    display: none;
+  }
+
+  /* плотнее, чтобы обе кнопки первого экрана стояли над нижней панелью вкладок даже на 375×667 */
+  .hero {
+    padding: 20px 18px;
+    gap: 14px;
+  }
+
+  /* «Делаю интерфейсы,» влезает в строку от 360px: заголовок в три строки, а не в четыре */
+  .hero h1 {
+    font-size: clamp(28px, 7.8vw, 32px);
+  }
+
   .cv-long {
     display: none;
   }

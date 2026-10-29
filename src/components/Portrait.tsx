@@ -89,17 +89,14 @@ export function Portrait() {
       <span className="bubble glass" role="status" aria-live="polite" hidden={!bubble}>
         {bubble}
       </span>
+      {/* Next.js, React и TypeScript уже в подзаголовке: плашки добавляют то, чего на экране ещё нет */}
       <span className="float solid f1" data-depth="1.6">
         <i style={{ background: 'var(--teal)' }} />
-        Next.js
+        GSAP
       </span>
       <span className="float solid f2" data-depth="2.4">
         <i style={{ background: 'var(--violet)' }} />
-        TypeScript
-      </span>
-      <span className="float solid f3" data-depth="1.1">
-        <i style={{ background: 'var(--ember)' }} />
-        JavaScript
+        GraphQL
       </span>
     </div>
   );
