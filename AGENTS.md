@@ -82,6 +82,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 | Вкладки, время суток, клавиатура                  | [src/components/Shell.tsx](src/components/Shell.tsx)                                     |
 | Пост-обработка сборки                             | [scripts/prepare-static.mjs](scripts/prepare-static.mjs)                                 |
 | Контраст токенов                                  | [scripts/contrast.mjs](scripts/contrast.mjs)                                             |
+| Обязательные рекомендации (OWASP, WCAG…)          | `../agent-base/docs/principles.md` → «Стандарты»                                         |
 
 ## Нельзя
 
