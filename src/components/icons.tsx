@@ -20,6 +20,15 @@ export const TAB_ICONS = [
 export const TrophyIcon = () =>
   pixel('M1 0h6v1H1zM0 1h1v2H0zM7 1h1v2H7zM1 1h6v3H1zM2 4h4v1H2zM3 5h2v1H3zM2 6h4v1H2zM1 7h6v1H1z');
 
+/** Два листа внахлёст. */
+export const CopyIcon = () =>
+  pixel('M2 0h6v1H2zM2 1h1v1H2zM7 1h1v5H7zM6 5h1v1H6zM0 2h6v1H0zM0 7h6v1H0zM0 3h1v4H0zM5 3h1v4H5z');
+
+export const CloseIcon = () =>
+  pixel(
+    'M0 0h1v1H0zM7 0h1v1H7zM1 1h1v1H1zM6 1h1v1H6zM2 2h1v1H2zM5 2h1v1H5zM3 3h2v2H3zM2 5h1v1H2zM5 5h1v1H5zM1 6h1v1H1zM6 6h1v1H6zM0 7h1v1H0zM7 7h1v1H7z',
+  );
+
 /** Медальон Школы Волка: пиксельная карта 16×16. */
 const MEDAL_MAP = [
   '.....rrrrrr.....',

@@ -36,6 +36,43 @@ export async function open(page: Page, hash = '') {
 export const stored = (page: Page, key: string) =>
   page.evaluate((k) => JSON.parse(localStorage.getItem(k) ?? '[]') as string[], key);
 
+/** Дождаться конечных анимаций (въезд блоков, появление тостов); бесконечные — сияние, костры — не ждём. */
+export const settle = (page: Page) =>
+  page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((a) => a.effect?.getComputedTiming().endTime !== Infinity)
+        .map((a) => a.finished.catch(() => {})),
+    ),
+  );
+
+/**
+ * Чем закрыт элемент в фокусе: краем прокрутки, нижней панелью вкладок (телефон) или липким
+ * оглавлением «Опыта». null — виден целиком. Смотрим только содержимое вкладок.
+ */
+export const focusObscured = (page: Page) =>
+  page.evaluate(() => {
+    const el = document.activeElement;
+    const scroller = el?.closest<HTMLElement>('.page');
+    if (!el || !scroller) return null;
+    const b = el.getBoundingClientRect();
+    const view = scroller.getBoundingClientRect();
+    const cut = (r: DOMRect) =>
+      b.top < r.bottom - 1 && b.bottom > r.top + 1 && b.left < r.right - 1 && b.right > r.left + 1;
+    const name = `${el.tagName.toLowerCase()} «${(el.textContent ?? '').trim().slice(0, 30)}»`;
+    if (b.top < view.top - 1 || b.bottom > view.bottom + 1) return `${name} за краем прокрутки`;
+    const bar = document.querySelector('.tabs')!;
+    if (getComputedStyle(bar).position === 'fixed' && cut(bar.getBoundingClientRect()))
+      return `${name} под нижней панелью вкладок`;
+    const toc = scroller.querySelector('.q-list');
+    if (toc && !toc.contains(el) && getComputedStyle(toc).position === 'sticky') {
+      const r = toc.getBoundingClientRect();
+      if (r.top <= view.top + 1 && cut(r)) return `${name} под оглавлением`;
+    }
+    return null;
+  });
+
 /**
  * Ни страница, ни видимая вкладка не прокручиваются вбок. Замер — после анимации смены вкладки:
  * блоки въезжают со сдвигом 60px и на время раздвигают вкладку.

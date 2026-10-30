@@ -82,7 +82,7 @@ public/           og.png (превью для соцсетей), llms.txt (св�
 
 ## SEO
 
-- Весь текст всех четырёх страниц есть в статическом HTML (вкладки только скрывают лишнее).
+- Весь текст всех трёх страниц есть в статическом HTML (вкладки только скрывают лишнее).
 - `title`, `description`, canonical, Open Graph (`og.png`), Twitter Card, `robots`, `sitemap.xml`, `robots.txt`.
 - Микроразметка Schema.org: `ProfilePage`, `WebSite`, `Person` (должность, город, навыки, ссылки).
 - `llms.txt` — короткая сводка для ИИ-ассистентов.

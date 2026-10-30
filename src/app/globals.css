@@ -25,6 +25,7 @@
 
   --ember: #f28c38;
   --on-ember: #1a0f08;
+  --danger: #f0644a;
   --gold: #f5d27a;
   --violet: #d0c0ff;
   --teal: #7fe3d8;
@@ -38,6 +39,13 @@
   --radius: 20px;
   --radius-s: 12px;
   --gutter: clamp(16px, 4vw, 48px);
+  --wrap: 1180px;
+  /* от правого края окна до края колонки контента: по нему встают шапка, панель ачивок и тосты */
+  --edge: max(
+    var(--gutter),
+    env(safe-area-inset-right, 0px),
+    (100vw - var(--wrap)) / 2 + var(--gutter)
+  );
   --shadow: 0 18px 44px -20px rgb(0 0 0 / 0.75);
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --spring: cubic-bezier(0.34, 1.4, 0.64, 1);
@@ -107,6 +115,8 @@ body {
   font-family: var(--font-body-stack);
   font-size: 17px;
   line-height: 1.6;
+  /* без одиноких слов в последней строке абзаца */
+  text-wrap: pretty;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -527,11 +537,24 @@ h3 {
     transform 0.3s var(--spring),
     background-color 0.2s,
     box-shadow 0.3s;
+  /* подпись в одну строку: в шапке сетка иначе сжимает колонку и «Резюме в PDF» ломается надвое */
+  white-space: nowrap;
 }
 
-.btn:hover {
-  background: rgb(255 255 255 / 0.18);
-  transform: translateY(-2px);
+/* ховеры — только там, где есть мышь: на телефоне кнопка после касания оставалась бы приподнятой */
+@media (hover: hover) {
+  .btn:hover {
+    background: rgb(255 255 255 / 0.18);
+    transform: translateY(-2px);
+  }
+
+  .btn:hover .arr {
+    transform: translateX(4px);
+  }
+
+  .btn-accent:hover {
+    background: #f7a05a;
+  }
 }
 
 .btn:active {
@@ -542,18 +565,10 @@ h3 {
   transition: transform 0.3s var(--spring);
 }
 
-.btn:hover .arr {
-  transform: translateX(4px);
-}
-
 .btn-accent {
   border-color: transparent;
   background: var(--ember);
   color: var(--on-ember);
-}
-
-.btn-accent:hover {
-  background: #f7a05a;
 }
 
 .btn-sm {
@@ -575,12 +590,26 @@ h3 {
   text-underline-offset: 3px;
 }
 
-.btn-link:hover {
-  color: var(--ink);
+@media (hover: hover) {
+  .btn-link:hover {
+    color: var(--ink);
+  }
+}
+
+/* кнопка-значок: подпись видна, пока ей хватает места (см. .links) */
+.btn-icon svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
 }
 
 .cv-short {
   display: none;
+}
+
+/* фраза не рвётся переносом посередине */
+.nw {
+  white-space: nowrap;
 }
 
 .sr-only {
@@ -622,15 +651,19 @@ h3 {
 
 /* ---------- шапка ---------- */
 
+/* по ширине колонки контента: на широком экране часы и кнопки не убегают к краям окна */
 .top {
   position: relative;
   z-index: 5;
   display: grid;
+  width: 100%;
+  max-width: var(--wrap);
   align-items: center;
-  padding-top: 16px;
+  padding-top: calc(16px + env(safe-area-inset-top, 0px));
   padding-right: max(var(--gutter), env(safe-area-inset-right, 0px));
   padding-bottom: 6px;
   padding-left: max(var(--gutter), env(safe-area-inset-left, 0px));
+  margin-inline: auto;
   gap: 16px;
   grid-template-columns: 1fr auto 1fr;
 }
@@ -732,8 +765,10 @@ h3 {
   flex: none;
 }
 
-.tab:hover {
-  color: var(--ink);
+@media (hover: hover) {
+  .tab:hover {
+    color: var(--ink);
+  }
 }
 
 .tab[aria-current='page'] {
@@ -759,9 +794,14 @@ h3 {
   transition: color 0.2s;
 }
 
-.trophy:hover,
 .trophy[aria-expanded='true'] {
   color: var(--ink);
+}
+
+@media (hover: hover) {
+  .trophy:hover {
+    color: var(--ink);
+  }
 }
 
 .trophy svg {
@@ -790,11 +830,13 @@ h3 {
   grid-template-columns: minmax(0, 1fr);
   overflow: hidden auto;
   overscroll-behavior: contain;
+  /* фокус с клавиатуры не уезжает под край экрана и под нижние панели */
+  scroll-padding-block: 16px 24px;
 }
 
 .wrap {
   width: 100%;
-  max-width: 1180px;
+  max-width: var(--wrap);
   padding-top: 20px;
   padding-right: max(var(--gutter), env(safe-area-inset-right, 0px));
   padding-bottom: 72px;
@@ -870,8 +912,10 @@ h3 {
   white-space: nowrap;
 }
 
-.more:hover {
-  color: var(--ink);
+@media (hover: hover) {
+  .more:hover {
+    color: var(--ink);
+  }
 }
 
 .timeline {
@@ -928,12 +972,29 @@ h3 {
   box-shadow: 0 0 0 4px rgb(147 217 119 / 0.2);
 }
 
-.timeline a:hover::after {
-  scale: 1.35;
+/* стрелка в конце названия: видно, что строка ведёт к подробностям, и без наведения мышью */
+.tl-go {
+  display: inline-block;
+  margin-left: 8px;
+  color: var(--ink-3);
+  transition:
+    translate 0.3s var(--spring),
+    color 0.3s;
 }
 
-.timeline a:hover b {
-  color: var(--gold);
+@media (hover: hover) {
+  .timeline a:hover::after {
+    scale: 1.35;
+  }
+
+  .timeline a:hover b,
+  .timeline a:hover .tl-go {
+    color: var(--gold);
+  }
+
+  .timeline a:hover .tl-go {
+    translate: 4px 0;
+  }
 }
 
 .tl-when {
@@ -994,8 +1055,10 @@ h3 {
   transition: color 0.2s;
 }
 
-.who-name:hover b {
-  color: var(--gold);
+@media (hover: hover) {
+  .who-name:hover b {
+    color: var(--gold);
+  }
 }
 
 .status {
@@ -1076,6 +1139,7 @@ h3 {
 .facts span {
   color: var(--ink-3);
   font-size: 14px;
+  line-height: 1.45;
 }
 
 .visual {
@@ -1238,8 +1302,10 @@ h3 {
     background-color 0.3s;
 }
 
-.q:hover {
-  transform: translateX(4px);
+@media (hover: hover) {
+  .q:hover {
+    transform: translateX(4px);
+  }
 }
 
 .q[aria-current] {
@@ -1362,6 +1428,11 @@ h3 {
   gap: 12px;
 }
 
+/* перенесённая на свою строку кнопка остаётся справа, как в главах, где она влезла рядом */
+.q-foot .btn-link {
+  margin-left: auto;
+}
+
 .fun {
   margin: 0;
   color: var(--ink-2);
@@ -1397,27 +1468,62 @@ h3 {
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
 }
 
+/* контейнер: в узкой колонке кнопка копирования сжимается до значка */
 .links {
   display: grid;
   padding: 0;
   margin: 20px 0 0;
+  container-type: inline-size;
   gap: 12px;
   list-style: none;
 }
 
-.link {
+.link,
+.link-main {
   display: flex;
   align-items: center;
-  padding: 14px 18px;
-  border-radius: 16px;
   color: var(--ink);
   gap: 16px;
   text-decoration: none;
+}
+
+.link {
+  padding: 14px 18px;
+  border-radius: 16px;
   transition: transform 0.35s var(--spring);
 }
 
-a.link:hover {
-  transform: translateX(6px);
+/* карточка почты: адрес открывает письмо, кнопка рядом копирует его */
+.link-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.link-main b {
+  text-decoration: underline 1px rgb(255 255 255 / 0.35);
+  text-underline-offset: 4px;
+  transition: text-decoration-color 0.2s;
+}
+
+@media (hover: hover) {
+  a.link:hover {
+    transform: translateX(6px);
+  }
+
+  .link-main:hover b {
+    text-decoration-color: currentColor;
+  }
+}
+
+@container (width < 470px) {
+  .btn-icon {
+    width: 44px;
+    padding: 0;
+  }
+
+  .btn-icon .btn-t {
+    display: none;
+  }
 }
 
 .link.primary {
@@ -1480,9 +1586,10 @@ a.link:hover {
   color: var(--on-ember);
 }
 
+/* длинный адрес переносится у «@» (там стоит <wbr>), а не по буквам */
 .link b {
   font-size: 17px;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .link .arr {
@@ -1497,9 +1604,10 @@ a.link:hover {
 
 .hr-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
+  gap: 4px 12px;
 }
 
 .hr-head :is(h2, h3) {
@@ -1511,6 +1619,7 @@ a.link:hover {
   font-family: var(--font-accent-stack);
   font-size: 14px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .hr dl {
@@ -1542,17 +1651,16 @@ a.link:hover {
   position: fixed;
   z-index: 30;
   top: calc(76px + env(safe-area-inset-top, 0px));
-  right: max(var(--gutter), env(safe-area-inset-right, 0px));
+  right: var(--edge);
   width: min(400px, calc(100vw - 24px));
-  padding: 18px;
+  padding: 14px 14px 18px 18px;
   background: var(--solid);
 }
 
 .ach-head {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 12px;
+  align-items: center;
+  margin-bottom: 8px;
   gap: 12px;
 }
 
@@ -1561,9 +1669,37 @@ a.link:hover {
 }
 
 .ach-head span {
+  margin-left: auto;
   color: var(--ink-3);
   font-family: var(--font-accent-stack);
   font-size: 14px;
+}
+
+/* на телефоне панель почти во весь экран: закрыть её должно быть чем, кроме кубка */
+.ach-close {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+  place-items: center;
+}
+
+.ach-close svg {
+  width: 16px;
+  height: 16px;
+}
+
+@media (hover: hover) {
+  .ach-close:hover {
+    background: rgb(255 255 255 / 0.1);
+    color: var(--ink);
+  }
 }
 
 .ach-scroll {
@@ -1572,13 +1708,22 @@ a.link:hover {
 }
 
 .ach-group {
+  display: flex;
+  justify-content: space-between;
   margin: 14px 0 8px;
   color: var(--gold);
   font-family: var(--font-accent-stack);
   font-size: 14px;
   font-weight: 700;
+  gap: 12px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.ach-group span {
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
 }
 
 .ach-group:first-child {
@@ -1649,6 +1794,7 @@ a.link:hover {
 
 .ach-foot button {
   min-height: 44px;
+  flex: none;
   padding: 0 8px;
   border: 0;
   background: none;
@@ -1658,11 +1804,19 @@ a.link:hover {
   text-decoration: underline;
 }
 
+/* второе нажатие сотрёт прогресс: кнопка в цвете опасного действия */
+.ach-foot button[data-confirm] {
+  border-radius: var(--radius-s);
+  background: var(--danger);
+  color: var(--on-ember);
+  text-decoration: none;
+}
+
 .ach-toasts {
   position: fixed;
   z-index: 50;
   top: calc(72px + env(safe-area-inset-top, 0px));
-  right: max(var(--gutter), env(safe-area-inset-right, 0px));
+  right: var(--edge);
 }
 
 .ach-toast {
@@ -1683,8 +1837,10 @@ a.link:hover {
   text-align: left;
 }
 
-.ach-toast:hover {
-  color: var(--ink);
+@media (hover: hover) {
+  .ach-toast:hover {
+    color: var(--ink);
+  }
 }
 
 .ach-toast .ach-ic {
@@ -1750,8 +1906,15 @@ a.link:hover {
   transition: opacity 0.3s;
 }
 
-.xpdock:hover {
+/* пока открыта подсказка (на телефоне — по нажатию), шкала видна полностью */
+.xpdock:has(+ .xp-tip) {
   opacity: 1;
+}
+
+@media (hover: hover) {
+  .xpdock:hover {
+    opacity: 1;
+  }
 }
 
 .xpbar {
@@ -1832,29 +1995,32 @@ a.link:hover {
 
 /* ---------- медальон, подсказка, тост ---------- */
 
+/* в шапке рядом с кубком: в углу экрана он закрывал край карточек на ширине 860–1180 */
 .medal {
-  position: fixed;
-  z-index: 24;
-  right: max(var(--gutter), env(safe-area-inset-right, 0px));
-  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   width: 44px;
   height: 44px;
+  flex: none;
   padding: 2px;
   border: 0;
   border-radius: 50%;
   background: none;
   cursor: pointer;
   filter: drop-shadow(0 4px 10px rgb(0 0 0 / 0.6));
-  opacity: 0.7;
+  opacity: 0.8;
   transition:
     filter 0.4s,
     opacity 0.3s;
 }
 
-.medal:hover,
 .medal.near,
 .senses .medal {
   opacity: 1;
+}
+
+@media (hover: hover) {
+  .medal:hover {
+    opacity: 1;
+  }
 }
 
 .medal svg {
@@ -1880,7 +2046,7 @@ a.link:hover {
 .hint {
   position: fixed;
   z-index: 3;
-  right: calc(max(var(--gutter), env(safe-area-inset-right, 0px)) + 56px);
+  right: var(--edge);
   bottom: calc(30px + env(safe-area-inset-bottom, 0px));
   display: flex;
   align-items: center;
@@ -1899,6 +2065,13 @@ a.link:hover {
   font: inherit;
 }
 
+/* стрелки нужны тем, у кого есть клавиатура: на сенсорном экране листают вкладками */
+@media (hover: none) {
+  .hint {
+    display: none;
+  }
+}
+
 .toast-slot {
   position: fixed;
   z-index: 40;
@@ -1915,6 +2088,34 @@ a.link:hover {
   background: var(--solid);
   font-size: 16px;
   font-weight: 600;
+}
+
+/* ---------- 404 ---------- */
+
+.lost {
+  display: grid;
+  height: 100%;
+  padding: var(--gutter);
+  place-items: center;
+}
+
+.lost-card {
+  position: relative;
+  display: grid;
+  max-width: 480px;
+  justify-items: start;
+  padding: clamp(24px, 4vw, 36px);
+  gap: 14px;
+}
+
+.lost-card h1 {
+  font-size: clamp(28px, 5vw, 40px);
+  line-height: 1.15;
+}
+
+.lost-card p:not(.label) {
+  margin: 0;
+  color: var(--ink-2);
 }
 
 /* ---------- адаптив ---------- */
@@ -1963,8 +2164,13 @@ a.link:hover {
     margin-top: 16px;
   }
 
+  /* липкое оглавление сверху: и переход к главе, и фокус с клавиатуры встают под ним, а не за ним */
+  #page-experience {
+    scroll-padding-top: 104px;
+  }
+
   .q-detail {
-    scroll-margin-top: 104px;
+    scroll-margin-top: 0;
   }
 
   .q {
@@ -1981,16 +2187,51 @@ a.link:hover {
   }
 }
 
-@media (width <= 860px) {
-  .top {
-    grid-template-columns: 1fr auto;
+/* часам не хватает места: вкладки встают слева, кнопки справа */
+@media (width <= 940px) {
+  .clock {
+    display: none;
   }
 
-  /* справа от панели остаётся место под медальон */
+  .top {
+    grid-template-columns: auto 1fr;
+  }
+}
+
+@media (width <= 860px) {
+  .page {
+    align-items: start;
+  }
+
+  .f1 {
+    left: -24%;
+  }
+
+  .f2 {
+    right: -24%;
+  }
+}
+
+@media (width <= 760px) {
+  .cv-long {
+    display: none;
+  }
+
+  .cv-short {
+    display: inline;
+  }
+}
+
+/* телефон: вкладки — панелью внизу, под большим пальцем; в шапке остаются медальон, кубок и резюме */
+@media (width <= 700px) {
+  .top {
+    grid-template-columns: 1fr;
+  }
+
   .tabs {
     position: fixed;
     z-index: 20;
-    right: calc(64px + env(safe-area-inset-right, 0px));
+    right: calc(12px + env(safe-area-inset-right, 0px));
     bottom: calc(26px + env(safe-area-inset-bottom, 0px));
     left: calc(12px + env(safe-area-inset-left, 0px));
   }
@@ -2004,8 +2245,9 @@ a.link:hover {
     gap: 4px;
   }
 
+  /* фокус с клавиатуры не прячется под нижнюю панель вкладок */
   .page {
-    align-items: start;
+    scroll-padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px));
   }
 
   .wrap {
@@ -2016,14 +2258,28 @@ a.link:hover {
     display: none;
   }
 
-  /* в одном ряду с нижней панелью вкладок: над текстом он закрывал бы правый край страницы */
-  .medal {
+  /* оба тоста — столбиком над нижней панелью вкладок: друг на друга они не налезают */
+  .toasts {
+    position: fixed;
+    z-index: 50;
     right: calc(12px + env(safe-area-inset-right, 0px));
-    bottom: calc(38px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(108px + env(safe-area-inset-bottom, 0px));
+    left: calc(12px + env(safe-area-inset-left, 0px));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
   }
 
+  .ach-toasts,
   .toast-slot {
-    bottom: calc(116px + env(safe-area-inset-bottom, 0px));
+    position: static;
+    translate: none;
+  }
+
+  .ach-toast {
+    margin-bottom: 8px;
+    pointer-events: auto;
   }
 
   .xp-tip {
@@ -2034,30 +2290,9 @@ a.link:hover {
     top: calc(70px + env(safe-area-inset-top, 0px));
     right: 12px;
   }
-
-  /* над нижней панелью вкладок и над обычным тостом */
-  .ach-toasts {
-    top: auto;
-    right: auto;
-    bottom: calc(172px + env(safe-area-inset-bottom, 0px));
-    left: calc(12px + env(safe-area-inset-left, 0px));
-  }
-
-  .f1 {
-    left: -24%;
-  }
-
-  .f2 {
-    right: -24%;
-  }
 }
 
 @media (width <= 560px) {
-  /* в шапке остаются кубок и резюме; часы работы есть на «Контактах» */
-  .clock {
-    display: none;
-  }
-
   /* плотнее, чтобы обе кнопки первого экрана стояли над нижней панелью вкладок даже на 375×667 */
   .hero {
     padding: 20px 18px;
@@ -2069,12 +2304,14 @@ a.link:hover {
     font-size: clamp(28px, 7.8vw, 32px);
   }
 
-  .cv-long {
-    display: none;
+  /* кнопки во всю ширину строки: в столбик они не торчат лесенкой */
+  .actions .btn {
+    flex: 1 1 auto;
   }
 
-  .cv-short {
-    display: inline;
+  .card,
+  .hr {
+    padding: 20px 18px;
   }
 
   .stats {
@@ -2093,13 +2330,50 @@ a.link:hover {
     white-space: nowrap;
   }
 
+  /* цифра и подпись в одну строку: три факта без пустой клетки, как было в сетке 2×2 */
   .facts {
-    grid-template-columns: 1fr 1fr;
+    gap: 8px 14px;
+    grid-template-columns: max-content minmax(0, 1fr);
+  }
+
+  .facts li {
+    display: grid;
+    align-items: baseline;
+    grid-column: span 2;
+    grid-template-columns: subgrid;
   }
 
   .hr dl div {
     grid-template-columns: 1fr;
     gap: 2px;
+  }
+}
+
+/* на 320 px рядом с маленьким фото не помещаются ни имя, ни статус; большое фото есть ниже */
+@media (width < 360px) {
+  .who {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .who-ava {
+    display: none;
+  }
+}
+
+/* низкий экран (телефон боком): шапка плотнее, оглавление опыта не держится сверху и не съедает треть высоты */
+@media (height <= 500px) {
+  .top {
+    padding-top: calc(8px + env(safe-area-inset-top, 0px));
+  }
+}
+
+@media (width <= 1000px) and (height <= 500px) {
+  .q-list {
+    position: relative;
+  }
+
+  #page-experience {
+    scroll-padding-top: 16px;
   }
 }
 

@@ -3,6 +3,8 @@ import { HR_JOKE, HR_ROWS, SITE } from '@/content/profile';
 
 /** Блоки стоят и на витрине, и на «Контактах», поэтому id внутри собираются из префикса. */
 
+const [mailUser, mailHost] = SITE.email.split('@');
+
 export function ContactLinks({ id }: { id: string }) {
   return (
     <ul className="links">
@@ -25,18 +27,26 @@ export function ContactLinks({ id }: { id: string }) {
         </TrackedLink>
       </li>
       <li data-s>
+        {/* два действия: адрес открывает почтовую программу, кнопка рядом копирует его */}
         <div className="link glass">
-          <span className="ic ic-violet" aria-hidden="true">
-            @
-          </span>
-          <span className="t">
-            <small>Почта</small>
-            <b id={`${id}-mail`}>{SITE.email}</b>
-          </span>
+          <a className="link-main" href={`mailto:${SITE.email}`}>
+            <span className="ic ic-violet" aria-hidden="true">
+              @
+            </span>
+            <span className="t">
+              <small>Почта</small>
+              {/* в узкой карточке адрес переносится перед «@», а не посреди имени */}
+              <b id={`${id}-mail`}>
+                {mailUser}
+                <wbr />@{mailHost}
+              </b>
+            </span>
+          </a>
           <CopyButton
             text={SITE.email}
             message="Почта скопирована. Жду письмо, а не рассылку."
             fallbackId={`${id}-mail`}
+            label="Скопировать почту"
           />
         </div>
       </li>

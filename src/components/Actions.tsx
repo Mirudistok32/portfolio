@@ -6,6 +6,8 @@ import { SITE } from '@/content/profile';
 import { unlock } from '@/lib/achievements';
 import { copyText } from '@/lib/copy';
 
+import { CopyIcon } from './icons';
+
 /**
  * Резюме: ссылка на PDF, если он лежит в public/. Пока его нет — честная кнопка «Запросить резюме»,
  * которая ведёт в Telegram, а не обещает PDF.
@@ -59,24 +61,29 @@ export function TrackedLink({
   );
 }
 
+/** Кнопка «Скопировать» со значком; в узкой карточке остаётся только значок (см. .links в CSS). */
 export function CopyButton({
   text,
   message,
   fallbackId,
-  label = 'Скопировать',
+  label,
 }: {
   text: string;
   message: string;
   fallbackId: string;
-  label?: string;
+  /** Полное имя кнопки для скринридера и подсказки, например «Скопировать почту». */
+  label: string;
 }) {
   return (
     <button
       type="button"
-      className="btn btn-sm"
+      className="btn btn-sm btn-icon"
+      aria-label={label}
+      title={label}
       onClick={() => copyText(text, message, document.getElementById(fallbackId))}
     >
-      {label}
+      <CopyIcon />
+      <span className="btn-t">Скопировать</span>
     </button>
   );
 }

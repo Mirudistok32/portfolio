@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   type Achievement,
@@ -8,12 +8,15 @@ import {
   achStore,
   cardOf,
   resetAchievements,
-  SECRET_IDS,
 } from '@/lib/achievements';
 import { useStore } from '@/lib/store';
+import { toast } from '@/lib/toast';
 import { setPanelOpen, uiStore } from '@/lib/ui';
 
-import { TrophyIcon } from './icons';
+import { CloseIcon, TrophyIcon } from './icons';
+
+const PLAIN = ACHIEVEMENTS.filter((a) => !a.hint);
+const SECRET = ACHIEVEMENTS.filter((a) => a.hint);
 
 function Item({ a, got }: { a: Achievement; got: boolean }) {
   const card = cardOf(a, got);
@@ -30,10 +33,30 @@ function Item({ a, got }: { a: Achievement; got: boolean }) {
   );
 }
 
+function Group({ title, list, got }: { title: string; list: Achievement[]; got: string[] }) {
+  return (
+    <>
+      <p className="ach-group">
+        {title}
+        <span>
+          {list.filter((a) => got.includes(a.id)).length}/{list.length}
+        </span>
+      </p>
+      <ul className="ach-list">
+        {list.map((a) => (
+          <Item key={a.id} a={a} got={got.includes(a.id)} />
+        ))}
+      </ul>
+    </>
+  );
+}
+
 /** Кубок в шапке и панель со всеми ачивками. */
 export function Trophy() {
   const { got } = useStore(achStore);
   const { panelOpen } = useStore(uiStore);
+  // Сброс в два нажатия: прогресс не должен пропадать от одного случайного клика
+  const [confirm, setConfirm] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   const prevCount = useRef(got.length);
@@ -49,6 +72,18 @@ export function Trophy() {
   }, [got.length]);
 
   useEffect(() => {
+    if (!confirm) return;
+    const t = setTimeout(() => setConfirm(false), 5000);
+    return () => clearTimeout(t);
+  }, [confirm]);
+
+  const close = useCallback((refocus: boolean) => {
+    setPanelOpen(false);
+    setConfirm(false);
+    if (refocus) buttonRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
     if (!panelOpen) return;
     const onDoc = (e: MouseEvent) => {
       const t = e.target as Node;
@@ -57,13 +92,10 @@ export function Trophy() {
         !buttonRef.current?.contains(t) &&
         !(t instanceof Element && t.closest('.ach-toast'))
       )
-        setPanelOpen(false);
+        close(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setPanelOpen(false);
-        buttonRef.current?.focus();
-      }
+      if (e.key === 'Escape') close(true);
     };
     document.addEventListener('click', onDoc);
     document.addEventListener('keydown', onKey);
@@ -71,9 +103,17 @@ export function Trophy() {
       document.removeEventListener('click', onDoc);
       document.removeEventListener('keydown', onKey);
     };
-  }, [panelOpen]);
+  }, [panelOpen, close]);
 
-  const secretsFound = SECRET_IDS.filter((id) => got.includes(id)).length;
+  const onReset = () => {
+    if (!confirm) {
+      setConfirm(true);
+      return;
+    }
+    resetAchievements();
+    setConfirm(false);
+    toast('Прогресс сброшен. Тайники снова спрятаны.');
+  };
 
   return (
     <>
@@ -85,7 +125,7 @@ export function Trophy() {
         aria-controls="ach-panel"
         aria-label={`Ачивки: ${got.length} из ${ACHIEVEMENTS.length}`}
         title="Ачивки: на сайте спрятаны секреты, кубок считает найденные"
-        onClick={() => setPanelOpen(!panelOpen)}
+        onClick={() => (panelOpen ? close(false) : setPanelOpen(true))}
       >
         <TrophyIcon />
         <span aria-hidden="true">
@@ -97,27 +137,27 @@ export function Trophy() {
           <div className="ach-head">
             <h2>Ачивки</h2>
             <span>
-              {got.length} из {ACHIEVEMENTS.length} · секретов {secretsFound}/{SECRET_IDS.length}
+              {got.length} из {ACHIEVEMENTS.length}
             </span>
+            <button
+              type="button"
+              className="ach-close"
+              aria-label="Закрыть"
+              onClick={() => close(true)}
+            >
+              <CloseIcon />
+            </button>
           </div>
           <div className="ach-scroll">
-            <p className="ach-group">Открытые</p>
-            <ul className="ach-list">
-              {ACHIEVEMENTS.filter((a) => !a.hint).map((a) => (
-                <Item key={a.id} a={a} got={got.includes(a.id)} />
-              ))}
-            </ul>
-            <p className="ach-group">Секретные</p>
-            <ul className="ach-list">
-              {ACHIEVEMENTS.filter((a) => a.hint).map((a) => (
-                <Item key={a.id} a={a} got={got.includes(a.id)} />
-              ))}
-            </ul>
+            <Group title="Обычные" list={PLAIN} got={got} />
+            <Group title="Секретные" list={SECRET} got={got} />
           </div>
           <div className="ach-foot">
-            <span>Прогресс хранится в этом браузере</span>
-            <button type="button" onClick={resetAchievements}>
-              Сбросить
+            <span aria-live="polite">
+              {confirm ? 'Все ачивки и тайники пропадут' : 'Прогресс хранится в этом браузере'}
+            </span>
+            <button type="button" data-confirm={confirm || undefined} onClick={onReset}>
+              {confirm ? 'Да, сбросить' : 'Сбросить'}
             </button>
           </div>
         </section>

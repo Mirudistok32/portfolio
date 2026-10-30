@@ -3,6 +3,7 @@ import Image from 'next/image';
 import avatar from '@/assets/avatar.webp';
 import { TrackedLink } from '@/components/Actions';
 import { ContactLinks, HrCard } from '@/components/ContactCards';
+import { Period } from '@/components/Period';
 import { Portrait } from '@/components/Portrait';
 import { RotWord } from '@/components/RotWord';
 import { FACTS, QUESTS, SITE } from '@/content/profile';
@@ -73,9 +74,17 @@ export function About() {
             {QUESTS.map((q) => (
               <li key={q.id}>
                 <a href={`#job-${q.id}`}>
-                  <span className="tl-when">{q.period}</span>
+                  <span className="tl-when">
+                    <Period text={q.period} />
+                  </span>
+                  {/* стрелка — признак ссылки и без наведения мышью; точка не уезжает в начало строки */}
                   <b>
-                    {q.role} · {q.company}
+                    {q.role}
+                    {' · '}
+                    {q.company}
+                    <span className="tl-go" aria-hidden="true">
+                      →
+                    </span>
                   </b>
                   <span className="tl-sum">{q.headline}</span>
                 </a>

@@ -2,7 +2,7 @@
 
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-import { PAGES } from '@/content/profile';
+import { PAGES, SITE } from '@/content/profile';
 import { loadAchievements, unlock } from '@/lib/achievements';
 import { setSenses, uiStore } from '@/lib/ui';
 
@@ -17,7 +17,23 @@ import { XpDock } from './XpDock';
 
 const EASE = 'cubic-bezier(.22,1,.36,1)';
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-const pageFromHash = () => PAGES.findIndex((p) => `#${p.id}` === location.hash);
+
+/** Куда ведёт якорь: #contacts — на вкладку, #job-zvuk — к главе на её вкладке. */
+function locate(id: string, sections: (HTMLElement | null)[]) {
+  const page = PAGES.findIndex((p) => p.id === id);
+  if (page >= 0 || !id) return { page, target: null };
+  const target = document.getElementById(id);
+  return { page: target ? sections.findIndex((s) => s?.contains(target)) : -1, target };
+}
+
+/** У каждой вкладки свой заголовок: по нему понятна вкладка браузера и история «назад». */
+const titleOf = (i: number) => (i > 0 ? `${PAGES[i].label} — ${SITE.name}` : SITE.title);
+
+/** Доехать до якоря на открытой вкладке и поставить на него фокус. */
+function reveal(target: HTMLElement, smooth: boolean) {
+  target.scrollIntoView({ behavior: smooth && !reduced() ? 'smooth' : 'auto', block: 'start' });
+  target.focus({ preventScroll: true });
+}
 
 const GLASS = '.glass, .solid';
 
@@ -84,6 +100,7 @@ export function Shell({ pages }: { pages: ReactNode[] }) {
     const dir = prev < 0 || i > prev ? 1 : -1;
     cur.current = i;
     document.documentElement.dataset.tod = String(i);
+    document.title = titleOf(i);
     uiStore.set((s) => ({ ...s, page: i }));
     setPage(i);
 
@@ -168,10 +185,18 @@ export function Shell({ pages }: { pages: ReactNode[] }) {
   useEffect(() => {
     loadAchievements();
     nav.current.born = performance.now();
-    go(Math.max(0, pageFromHash()), false);
+    const start = locate(location.hash.slice(1), sections.current);
+    go(Math.max(0, start.page), false);
     // «Обо мне» уже нарисована из HTML до загрузки скриптов: анимация с нуля её бы мигнула
     // (и спрятала бы LCP). Въезжает только страница, открытая по ссылке, — её до этого не было видно.
     if (cur.current !== 0 && !reduced()) enter(sections.current[cur.current]!, 1);
+    // ссылка сразу на главу (…#job-zvuk): браузер не доехал до неё, пока вкладка была скрыта
+    if (start.target && start.page >= 0) reveal(start.target, false);
+    // Next досылает метаданные потоком уже после гидратации и возвращает общий заголовок — ставим свой снова
+    const keepTitle = new MutationObserver(() => {
+      if (document.title !== titleOf(cur.current)) document.title = titleOf(cur.current);
+    });
+    keepTitle.observe(document.head, { childList: true, subtree: true, characterData: true });
     requestAnimationFrame(() => {
       tabsRef.current?.classList.add('ready');
       // Подсказка в углу не должна закрывать текст: если там уже карточка, обойдёмся без неё
@@ -202,28 +227,21 @@ export function Shell({ pages }: { pages: ReactNode[] }) {
       if (e.target instanceof HTMLElement && e.target.scrollTop > 40) setHint(false);
     };
     const onHash = () => {
-      const i = pageFromHash();
-      if (i >= 0) go(i);
+      const { page, target } = locate(location.hash.slice(1), sections.current);
+      if (page < 0) return;
+      go(page);
+      if (target) reveal(target, false);
     };
     const onClick = (e: MouseEvent) => {
       const a = e.target instanceof Element ? e.target.closest('a[href^="#"]') : null;
       if (!a) return;
-      const id = a.getAttribute('href')!.slice(1);
-      const i = PAGES.findIndex((p) => p.id === id);
-      if (i >= 0) {
-        e.preventDefault();
-        goTo(i);
-        return;
-      }
-      // Якорь внутри страницы (например, глава опыта с витрины): открыть страницу и доехать до него
-      const target = id ? document.getElementById(id) : null;
-      const at = target ? sections.current.findIndex((s) => s?.contains(target)) : -1;
-      if (at < 0) return;
+      const { page, target } = locate(a.getAttribute('href')!.slice(1), sections.current);
+      if (page < 0) return;
       e.preventDefault();
-      const jump = at !== cur.current;
-      goTo(at);
-      target!.scrollIntoView({ behavior: jump || reduced() ? 'auto' : 'smooth', block: 'start' });
-      target!.focus({ preventScroll: true });
+      // Якорь внутри страницы (например, глава опыта с витрины): открыть страницу и доехать до него
+      const jump = page !== cur.current;
+      goTo(page);
+      if (target) reveal(target, !jump);
     };
     let typed = '';
     const onKey = (e: KeyboardEvent) => {
@@ -242,6 +260,8 @@ export function Shell({ pages }: { pages: ReactNode[] }) {
           unlock('plotva');
         }
       }
+      // Shift со стрелками выделяет текст, вкладки им не листаются
+      if (e.shiftKey) return;
       if (e.key === 'ArrowRight' && cur.current < PAGES.length - 1) {
         goTo(cur.current + 1);
         unlock('ninja');
@@ -265,6 +285,7 @@ export function Shell({ pages }: { pages: ReactNode[] }) {
     addEventListener('keydown', onKey);
     addEventListener('keyup', onKeyUp);
     return () => {
+      keepTitle.disconnect();
       timers.forEach(clearTimeout);
       clearInterval(clock);
       document.removeEventListener('scroll', onScroll, { capture: true });
@@ -300,6 +321,7 @@ export function Shell({ pages }: { pages: ReactNode[] }) {
             ))}
           </nav>
           <div className="top-actions">
+            <Medallion />
             <Trophy />
             <CvButton className="btn btn-accent btn-sm" compact />
           </div>
@@ -325,10 +347,12 @@ export function Shell({ pages }: { pages: ReactNode[] }) {
         <kbd>←</kbd>
         <kbd>→</kbd> листать время суток
       </p>
-      <Medallion />
       <XpDock />
-      <AchToasts />
-      <Toast />
+      {/* на телефоне оба тоста встают в этом контейнере столбиком, на ноутбуке у каждого своё место */}
+      <div className="toasts">
+        <AchToasts />
+        <Toast />
+      </div>
     </>
   );
 }

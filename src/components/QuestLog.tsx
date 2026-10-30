@@ -6,6 +6,8 @@ import { QUESTS } from '@/content/profile';
 import { unlock } from '@/lib/achievements';
 import { copyText } from '@/lib/copy';
 
+import { Period } from './Period';
+
 /** «**текст**» из профиля → выделенный текст. */
 function rich(text: string) {
   return text.split(/\*\*(.+?)\*\*/).map((part, i) => (i % 2 ? <b key={i}>{part}</b> : part));
@@ -88,9 +90,13 @@ export function QuestLog() {
             className="q-detail glass"
           >
             <header>
-              <p className="q-when">{q.period}</p>
+              <p className="q-when">
+                <Period text={q.period} />
+              </p>
               <h3 id={`job-${q.id}-title`}>
-                {q.role} <span>· {q.company}</span>
+                {q.role}
+                {' '}
+                <span>· {q.company}</span>
               </h3>
               <p className="q-about">{q.about}</p>
             </header>
