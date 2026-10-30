@@ -33,6 +33,8 @@ import { createFauna, type Hit, type Layer, type LiveCtx, season } from './fauna
 
 /** На сколько экрана поднимается земля под ногами, когда страница докручена до конца. */
 const LIFT = 0.34;
+/** Как подъём приходит к новой странице при смене вкладки: так же, как transform у .layer. */
+const GLIDE = { duration: 1500, easing: 'cubic-bezier(0.65, 0, 0.35, 1)' };
 /** За сколько на закате разгораются костры и слетаются светлячки, мс. */
 const KINDLE = 9000;
 /** Сколько светлячков летает ночью; остальные прилетают на луг только на закате. */
@@ -232,6 +234,10 @@ export function createScene(root: HTMLElement): SceneEngine {
     size(cv.midD, d.W, d.HMID);
     size(cv.foreN, d.W, d.HFORE);
     size(cv.foreD, d.W, d.HFORE);
+    // Подъём разводит передний план и землю: без юбки его цвета в зазоре видны дальние слои и небо
+    const skirt = d.HGROUND * S;
+    cv.foreN.style.boxShadow = `0 ${skirt}px 0 ${PAL.fore.n.ground}`;
+    cv.foreD.style.boxShadow = `0 ${skirt}px 0 ${PAL.fore.d.ground}`;
     size(cv.fg, d.W, d.HFORE);
     size(cv.groundN, d.W, d.HGROUND);
     size(cv.groundD, d.W, d.HGROUND);
@@ -630,6 +636,7 @@ export function createScene(root: HTMLElement): SceneEngine {
 
   let lift = 0;
   let liftRaf = 0;
+  let glides: Animation[] = [];
   const pageEl = () => document.querySelectorAll<HTMLElement>('.page')[cur] ?? null;
 
   function applyLift() {
@@ -638,6 +645,23 @@ export function createScene(root: HTMLElement): SceneEngine {
     layers.forEach((l) =>
       l.style.setProperty('--sy', `${(-lift * Number(l.dataset.lift) * R).toFixed(1)}px`),
     );
+  }
+
+  /**
+   * Смена вкладки: --sy сразу новый, а разница со старой страницей тает на .layer-in. Сдвиги складываются:
+   * прокрутка во время перехода видна сразу, и конец перехода ничего не обрывает.
+   */
+  function glide(from: number) {
+    cancelAnimationFrame(liftRaf);
+    applyLift();
+    const R = innerHeight * LIFT;
+    glides = layers.map((l, i) => {
+      const inner = l.firstElementChild as HTMLElement;
+      const rest = parseFloat(getComputedStyle(inner).translate.split(' ')[1] ?? '0') || 0;
+      glides[i]?.cancel();
+      const y = rest + (lift - from) * Number(l.dataset.lift) * R;
+      return inner.animate([{ translate: `0 ${y}px` }, { translate: '0 0' }], GLIDE);
+    });
   }
 
   function measureLift() {
@@ -930,14 +954,12 @@ export function createScene(root: HTMLElement): SceneEngine {
       layers.forEach((l) =>
         l.style.setProperty('--sx', `${-page * Number(l.dataset.depth) * 22}vw`),
       );
-      // Новая страница открывается сверху: земля плавно уходит вниз вместе со сменой времени суток.
-      // При загрузке плыть некуда, а glide заставил бы подъём догонять скролл первые полторы секунды
-      if (!firstPage) {
-        root.classList.add('glide');
-        later(() => root.classList.remove('glide'), 1500);
-      }
-      firstPage = false;
+      const from = lift;
       measureLift();
+      // Новая страница открывается сверху: земля плавно уходит вниз вместе со сменой времени суток.
+      // При загрузке плыть некуда
+      if (!firstPage && lift !== from) glide(from);
+      firstPage = false;
       updateSpots();
     },
     destroy() {

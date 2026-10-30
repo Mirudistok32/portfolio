@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 
 import { expect, type Page, test } from '@playwright/test';
+import sharp from 'sharp';
 
 import { PROJECT_VPN_NOTE, PROJECTS, SITE } from '../../src/content/profile';
 import { ACHIEVEMENTS } from '../../src/lib/achievements';
@@ -630,4 +631,135 @@ test('голубь несёт письмо в Telegram на «Контактах
   await until(() => page.locator('.scene > .spot:not(.off)').count());
   await page.clock.runFor(20_000);
   await expect(seen).toHaveCount(0);
+});
+
+test('параллакс: прокрутка сразу после смены вкладки не даёт рывка в конце перехода', async ({
+  page,
+}) => {
+  await open(page);
+  await settle(page);
+  await page.locator('.tab[href="#projects"]').click();
+  await page.waitForTimeout(300);
+  // Палец едет ровно, значит, и земля должна ехать ровно: сравниваем соседние кадры
+  const step = await page.evaluate(
+    () =>
+      new Promise<number>((resolve) => {
+        const el = document.querySelector<HTMLElement>('#page-projects')!;
+        const ground = document.querySelectorAll('.scene .layer')[4];
+        // подъём за прокруткой на самом слое, затухание смены вкладки на вложенном
+        const part = (e: Element) =>
+          parseFloat(getComputedStyle(e).translate.split(' ')[1] ?? '0') || 0;
+        const y = () => part(ground) + part(ground.firstElementChild!);
+        const end = performance.now() + 2000;
+        let last = y();
+        let worst = 0;
+        const tick = () => {
+          el.scrollTop += 4;
+          const now = y();
+          worst = Math.max(worst, Math.abs(now - last));
+          last = now;
+          if (performance.now() < end) requestAnimationFrame(tick);
+          else resolve(worst);
+        };
+        requestAnimationFrame(tick);
+      }),
+  );
+  expect(step).toBeLessThan(8);
+});
+
+/** Точки цвета подложки пейзажа в полосе экрана: подложка видна только там, где нет слоя. */
+async function bareRows(page: Page, top: number, height: number) {
+  const width = page.viewportSize()!.width;
+  const shot = await page.screenshot({ clip: { x: 0, y: top, width, height } });
+  const { data, info } = await sharp(shot)
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  let bare = 0;
+  for (let i = 0; i < data.length; i += info.channels)
+    if (data[i] === 255 && data[i + 1] === 0 && data[i + 2] === 255) bare++;
+  return bare;
+}
+
+const SHOW_BARE = `.scene { background: #f0f !important }
+  .app, .toasts, .hint, .xp-dock, .dusk, .haze, .fx, .vignette { visibility: hidden !important }`;
+
+for (const [width, height] of [
+  [320, 568],
+  [390, 844],
+  [844, 390],
+  [1280, 800],
+])
+  test(`параллакс, ${width}×${height}: внизу прокрутки между передним планом и землёй нет зазора`, async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop', 'размеры заданы в тесте');
+    await page.setViewportSize({ width, height });
+    await open(page, '#projects');
+    await settle(page);
+    // Дальние слои и небо убраны: всё, что они показывали бы в зазоре, станет цветом подложки
+    await page.addStyleTag({
+      content: `${SHOW_BARE} .scene .layer:nth-child(-n + 3) { visibility: hidden !important }`,
+    });
+    const top = await page.evaluate(async () => {
+      const el = document.querySelector<HTMLElement>('#page-projects')!;
+      el.scrollTop = el.scrollHeight;
+      await new Promise((r) => setTimeout(r, 200));
+      return document.querySelector('[data-c="foreD"]')!.getBoundingClientRect().bottom;
+    });
+    expect(await bareRows(page, Math.ceil(top), height - Math.ceil(top))).toBe(0);
+  });
+
+test('параллакс: у верхнего края экрана нет полосы подложки, куда бы ни ушла мышь', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'сдвиг за мышью только на устройстве с мышью');
+  await open(page, '#projects');
+  await settle(page);
+  await page.addStyleTag({ content: SHOW_BARE });
+  await page.mouse.move(640, 0);
+  await expect.poll(() => bareRows(page, 0, 2)).toBe(0);
+  await page.waitForTimeout(1200); // слой доезжает за мышью секунду
+  expect(await bareRows(page, 0, 2)).toBe(0);
+});
+
+test('параллакс: переход с низа страницы плавный и приводит пейзаж на верх новой', async ({
+  page,
+}) => {
+  await open(page);
+  await settle(page);
+  const max = await page.evaluate(() => {
+    const el = document.querySelector<HTMLElement>('#page-about')!;
+    el.scrollTop = el.scrollHeight;
+    return el.scrollHeight - el.clientHeight;
+  });
+  expect(max).toBeGreaterThan(0);
+  await page.waitForTimeout(200);
+  const start = page.evaluate(
+    () =>
+      new Promise<{ first: number; last: number; path: number }>((resolve) => {
+        const ground = document.querySelectorAll('.scene .layer')[4];
+        const part = (e: Element) =>
+          parseFloat(getComputedStyle(e).translate.split(' ')[1] ?? '0') || 0;
+        const y = () => part(ground) + part(ground.firstElementChild!);
+        const first = y();
+        const end = performance.now() + 1900;
+        let last = first;
+        let path = 0;
+        const tick = () => {
+          const now = y();
+          path += Math.abs(now - last);
+          last = now;
+          if (performance.now() < end) requestAnimationFrame(tick);
+          else resolve({ first, last, path });
+        };
+        requestAnimationFrame(tick);
+      }),
+  );
+  await page.locator('.tab[href="#experience"]').click();
+  const { first, last, path } = await start;
+  expect(first).toBeLessThan(-100);
+  expect(Math.abs(last)).toBeLessThan(0.5);
+  // Едет только вниз: длина пути равна расстоянию, иначе пейзаж дёрнулся бы в обратную сторону
+  expect(path).toBeLessThan(Math.abs(first) + 2);
 });
