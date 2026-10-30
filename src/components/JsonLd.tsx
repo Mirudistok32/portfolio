@@ -1,4 +1,4 @@
-import { KNOWS_ABOUT, QUESTS, SITE } from '@/content/profile';
+import { KNOWS_ABOUT, PROJECTS, QUESTS, SITE } from '@/content/profile';
 
 /** Микроразметка Schema.org: по ней Google и Яндекс понимают, что это страница профиля человека. */
 export function JsonLd() {
@@ -36,6 +36,17 @@ export function JsonLd() {
         inLanguage: 'ru',
       },
       person,
+      ...PROJECTS.map((p) => ({
+        '@type': 'CreativeWork',
+        '@id': `${SITE.url}#project-${p.id}`,
+        name: p.title,
+        description: p.about,
+        url: p.url,
+        genre: p.group,
+        keywords: p.stack,
+        inLanguage: 'ru',
+        author: { '@id': person['@id'] },
+      })),
     ],
   };
   return (

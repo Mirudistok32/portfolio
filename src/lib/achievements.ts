@@ -12,12 +12,12 @@ export interface Achievement {
 
 export const ACHIEVEMENTS: Achievement[] = [
   { id: 'welcome', icon: '✦', title: 'Добро пожаловать', desc: 'Открыть портфолио' },
-  { id: 'explorer', icon: '◎', title: 'Картограф', desc: 'Посетить все три страницы' },
+  { id: 'explorer', icon: '◎', title: 'Картограф', desc: 'Посетить все страницы' },
   {
     id: 'dawn',
     icon: '◐',
     title: 'Утро вечера мудренее',
-    desc: 'Дождаться дня на странице «Контакты»',
+    desc: 'Дождаться дня на странице «Проекты»',
   },
   {
     id: 'time',
@@ -199,6 +199,25 @@ export function cardOf(a: Achievement, got: boolean) {
     ? { icon: '?', title: '???', desc: a.hint }
     : { icon: a.icon, title: a.title, desc: a.desc };
 }
+
+/**
+ * Что открывает приход на вкладку; `seen` — память о посещениях за этот показ, функция её дополняет.
+ * День — с «Проектов» (2) и дальше: сразу на «Контакты» можно попасть по ссылке, и это тоже день.
+ */
+export function visitUnlocks(
+  page: number,
+  seen: { visited: Set<number>; sawDay: boolean },
+  total: number,
+) {
+  seen.visited.add(page);
+  if (page >= 2) seen.sawDay = true;
+  const ids: string[] = [];
+  if (seen.visited.size === total) ids.push('explorer');
+  if (page === 2) ids.push('dawn');
+  if (page === 0 && seen.sawDay) ids.push('time');
+  return ids;
+}
+
 /** Звери в пейзаже: все вместе дают «Зоолога». */
 const ZOO_IDS = ['wolf', 'owl', 'hedgehog', 'cow', 'bees', 'pigeon'];
 

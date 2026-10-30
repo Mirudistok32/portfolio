@@ -127,6 +127,7 @@ export const SKIES = [
   ['#05040B', '#08060F', '#0C0917', '#110C20', '#17102A', '#1E1534', '#261A3D'],
   ['#151337', '#26204F', '#432A63', '#6D3469', '#A3456A', '#D6635F', '#F2955A'],
   ['#2066B6', '#2F79C9', '#4690D8', '#66A6E2', '#8EBEEB', '#B9D7F3', '#DDEDF9'],
+  ['#2C2A6A', '#4C3478', '#7C3F7C', '#B24F72', '#E06C5E', '#F59355', '#FBC36E'],
 ];
 
 export function drawSky(ctx: Ctx, cols: string[], w: number, h: number) {
@@ -331,32 +332,57 @@ export function drawCosmos(ctx: Ctx, d: Dims) {
   PLANETS.forEach((p) => planet(ctx, p, d));
 }
 
-export function drawClouds(ctx: Ctx, d: Dims) {
-  // Места подобраны так, чтобы облака не ложились под заголовки страниц
-  const spots: [number, number, number][] = [
-    [0.03, 0.2, 9],
-    [0.25, 0.1, 8],
-    [0.55, 0.22, 12],
-    [0.86, 0.1, 12],
-    [1.02, 0.2, 10],
-  ];
-  for (const [fx, fy, fw] of spots) {
+/** Цвет облака и полоса под ним. */
+const CLOUD_DAY = { body: '#FFFFFF', under: 'rgba(160,190,225,.55)' };
+export const CLOUD_DUSK = { body: '#FFC9A6', under: 'rgba(214,92,110,.7)' };
+
+/** Места подобраны так, чтобы облака не ложились под заголовки страниц. */
+const CLOUD_SPOTS: [number, number, number][] = [
+  [0.03, 0.2, 9],
+  [0.25, 0.1, 8],
+  [0.55, 0.22, 12],
+  [0.86, 0.1, 12],
+  [1.02, 0.2, 10],
+];
+
+function cloudPuffs(ctx: Ctx, cx: number, cy: number, w: number) {
+  for (let j = 0; j < 4; j++) {
+    const inner = j === 1 || j === 2;
+    disc(
+      ctx,
+      cx + Math.round((j - 1.5) * w * 0.45),
+      cy - Math.round((inner ? 0.35 : 0) * w),
+      Math.round(w * (inner ? 0.38 : 0.28)),
+    );
+  }
+}
+
+export function drawClouds(ctx: Ctx, d: Dims, pal = CLOUD_DAY) {
+  for (const [fx, fy, fw] of CLOUD_SPOTS) {
     const cx = Math.round(OFF + d.VW * fx);
     const cy = Math.round(d.H * fy);
     const w = Math.round(fw * d.k);
-    ctx.fillStyle = '#FFFFFF';
-    for (let j = 0; j < 4; j++) {
-      const inner = j === 1 || j === 2;
-      disc(
-        ctx,
-        cx + Math.round((j - 1.5) * w * 0.45),
-        cy - Math.round((inner ? 0.35 : 0) * w),
-        Math.round(w * (inner ? 0.38 : 0.28)),
-      );
-    }
-    ctx.fillStyle = 'rgba(160,190,225,.55)';
+    ctx.fillStyle = pal.body;
+    cloudPuffs(ctx, cx, cy, w);
+    ctx.fillStyle = pal.under;
     ctx.fillRect(cx - Math.round(w * 0.9), cy + Math.round(w * 0.2), Math.round(w * 1.8), 1);
   }
+}
+
+/** Подсветка снизу от садящегося солнца: то же облако, из которого вынут сдвинутый вверх силуэт. */
+export function drawCloudGlow(ctx: Ctx, d: Dims) {
+  for (const [fx, fy, fw] of CLOUD_SPOTS) {
+    const cx = Math.round(OFF + d.VW * fx);
+    const cy = Math.round(d.H * fy);
+    const w = Math.round(fw * d.k);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = '#FF7F50';
+    cloudPuffs(ctx, cx, cy, w);
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = '#000';
+    cloudPuffs(ctx, cx, cy - Math.max(2, Math.round(w * 0.22)), w);
+  }
+  ctx.globalCompositeOperation = 'source-over';
 }
 
 /**
@@ -1041,6 +1067,12 @@ export function drawMid(ctx: Ctx, P: MidPal, d: Dims, geo: Geo | null) {
   }
 }
 
+/** Просветы в лесу переднего плана, доли ширины экрана. */
+const GLADES = [
+  [0.82, 0.97],
+  [1.09, 1.17],
+];
+
 export function drawFore(ctx: Ctx, P: ForePal, d: Dims, geo: Geo | null) {
   const Hc = d.HFORE;
   const u = (v: number) => Math.max(1, Math.round(v * d.k));
@@ -1078,7 +1110,12 @@ export function drawFore(ctx: Ctx, P: ForePal, d: Dims, geo: Geo | null) {
     const h = Math.round((center ? 8 + r() * 9 : 13 + r() * 20) * d.k);
     const kind = r();
     const clear = fireX.some((f) => Math.abs(f - x) < u(9)) || Math.abs(wolfX - x) < u(4);
+    // Просветы: на «Контактах» сквозь них видны избы и терем. Дерево рисуется невидимым, чтобы
+    // случайные числа шли тем же чередом и остальной лес не сдвинулся
+    const glade = GLADES.some(([a, b]) => x > OFF + d.VW * a && x < OFF + d.VW * b);
+    ctx.globalAlpha = glade ? 0 : 1;
     if (!clear) (kind < 0.45 ? birch : pine)(x, gy(x) + 1, h);
+    ctx.globalAlpha = 1;
     x += Math.round((5 + r() * 10) * d.k);
   }
   // Сухое дерево перед лесом: сук вправо, обломанная верхушка влево. Ночью на суку сидит сова
@@ -1157,16 +1194,21 @@ export function drawFore(ctx: Ctx, P: ForePal, d: Dims, geo: Geo | null) {
   // Своя последовательность случайных чисел: деревья и роса выше остаются на прежних местах
   const q = rng(73);
   // Плетень у околицы, на высоком колу петух
-  const f0 = Math.round(OFF + d.VW * 0.22);
-  const f1 = Math.round(OFF + d.VW * 0.3);
   const postX = Math.round(OFF + d.VW * 0.235);
-  ctx.fillStyle = P.wattle;
-  for (let xx = f0; xx <= f1; xx += Math.max(3, u(3))) {
-    const tall = Math.abs(xx - postX) < Math.max(3, u(3)) / 2;
-    ctx.fillRect(xx, gy(xx) - (tall ? u(8) : u(5)), 1, tall ? u(8) : u(5));
-  }
-  for (const lv of [u(1.5), u(3.5)])
-    for (let xx = f0; xx <= f1; xx++) ctx.fillRect(xx, gy(xx) - lv - ((xx >> 1) & 1), 1, 1);
+  const wattle = (from: number, to: number) => {
+    const f0 = Math.round(OFF + d.VW * from);
+    const f1 = Math.round(OFF + d.VW * to);
+    ctx.fillStyle = P.wattle;
+    for (let xx = f0; xx <= f1; xx += Math.max(3, u(3))) {
+      const tall = Math.abs(xx - postX) < Math.max(3, u(3)) / 2;
+      ctx.fillRect(xx, gy(xx) - (tall ? u(8) : u(5)), 1, tall ? u(8) : u(5));
+    }
+    for (const lv of [u(1.5), u(3.5)])
+      for (let xx = f0; xx <= f1; xx++) ctx.fillRect(xx, gy(xx) - lv - ((xx >> 1) & 1), 1, 1);
+  };
+  wattle(0.22, 0.3);
+  // Второй плетень: к нему стадо приходит на закате, старый на «Контактах» за краем экрана
+  wattle(1.02, 1.1);
   // Пасека: две колоды под дощатыми крышами
   const hive = (x: number) => {
     const g = gy(x) + 1;

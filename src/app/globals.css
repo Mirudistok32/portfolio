@@ -54,10 +54,13 @@
   --t-day: 0;
   --t-cos: 1;
   --t-cloud: 0;
+  --t-cloud-d: 0;
+  --t-dusk: 0;
   --t-vig: 1;
   --t-haze: 0.3;
   --t-aur: 1;
   --t-mist: 0.25;
+  --sun-x: 0vw;
   --sun-y: 82vh;
   --sun-o: 0;
   --sun-f: none;
@@ -90,6 +93,23 @@
   --sun-o: 1;
   --sun-f: none;
   --ind: #9fdcf8;
+}
+
+:root[data-tod='3'] {
+  --t-day: 1;
+  --t-cos: 0;
+  --t-cloud: 0;
+  --t-cloud-d: 1;
+  --t-dusk: 1;
+  --t-vig: 0.55;
+  --t-haze: 0.28;
+  --t-aur: 0;
+  --t-mist: 0.12;
+  --sun-x: 23vw;
+  --sun-y: 46vh;
+  --sun-o: 1;
+  --sun-f: hue-rotate(-34deg) saturate(1.9);
+  --ind: #fbb98a;
 }
 
 *,
@@ -135,7 +155,8 @@ a {
 
 h1,
 h2,
-h3 {
+h3,
+h4 {
   margin: 0;
   font-family: var(--font-display-stack);
   font-weight: 700;
@@ -269,13 +290,17 @@ h3 {
 }
 
 .s1,
-.s2 {
+.s2,
+.s3 {
   opacity: 0;
 }
 
 :root[data-tod='1'] .s1,
 :root[data-tod='2'] .s1,
-:root[data-tod='2'] .s2 {
+:root[data-tod='2'] .s2,
+:root[data-tod='3'] .s1,
+:root[data-tod='3'] .s2,
+:root[data-tod='3'] .s3 {
   opacity: 1;
 }
 
@@ -314,6 +339,20 @@ h3 {
   transition: opacity 1.6s ease;
 }
 
+.clouds-d {
+  opacity: var(--t-cloud-d);
+}
+
+/* подсветка снизу разгорается, пока солнце садится; уход с заката гасит её за обычные 1,6 с */
+.clouds-l {
+  opacity: 0;
+}
+
+:root[data-tod='3'] .clouds-l {
+  opacity: 1;
+  transition: opacity 14s ease-in;
+}
+
 @keyframes drift {
   to {
     translate: -4vw 0;
@@ -328,11 +367,23 @@ h3 {
   height: 88px;
   filter: var(--sun-f);
   opacity: var(--sun-o);
-  transform: translateY(var(--sun-y));
+  transform: translate(var(--sun-x), var(--sun-y));
   transition:
     transform 1.9s cubic-bezier(0.4, 0, 0.2, 1),
+    translate 1.9s cubic-bezier(0.4, 0, 0.2, 1),
     opacity 1.4s ease,
     filter 1.9s ease;
+  translate: 0 0;
+}
+
+/* закат: transform приводит солнце на место, translate медленно опускает его за холмы */
+:root[data-tod='3'] .sun {
+  transition:
+    transform 1.9s cubic-bezier(0.4, 0, 0.2, 1),
+    translate 20s linear,
+    opacity 1.4s ease,
+    filter 1.9s ease;
+  translate: 0 26vh;
 }
 
 .sun::before {
@@ -439,6 +490,24 @@ h3 {
   to {
     translate: -3vw 0;
   }
+}
+
+/* закат: дневной пейзаж теплеет наложением, к низу уходит в лиловую тень. Небо выше холмов не трогает.
+   Вне заката скрыт, чтобы на других вкладках браузер не считал наложение на весь экран */
+.dusk {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(transparent 30%, #ffb98a 52%, #e88f73 72%, #8d6390);
+  mix-blend-mode: multiply;
+  opacity: var(--t-dusk);
+  transition:
+    opacity 1.6s ease,
+    visibility 1.6s;
+  visibility: hidden;
+}
+
+:root[data-tod='3'] .dusk {
+  visibility: visible;
 }
 
 .haze {
@@ -1004,7 +1073,8 @@ h3 {
   font-weight: 600;
 }
 
-.timeline b {
+.timeline b,
+.showcase b {
   font-size: 16px;
   line-height: 1.35;
   transition: color 0.3s;
@@ -1014,6 +1084,40 @@ h3 {
   color: var(--ink-2);
   font-size: 15px;
   line-height: 1.45;
+}
+
+/* анонс проектов: строки как в ленте опыта, но без нити — у проектов нет порядка */
+.brief-projects {
+  grid-column: 1 / -1;
+}
+
+.showcase {
+  display: grid;
+  padding: 0;
+  margin: 0;
+  column-gap: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  list-style: none;
+}
+
+.showcase a {
+  display: grid;
+  padding: 10px 0;
+  border-radius: var(--radius-s);
+  color: var(--ink);
+  gap: 1px;
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .showcase a:hover b,
+  .showcase a:hover .tl-go {
+    color: var(--gold);
+  }
+
+  .showcase a:hover .tl-go {
+    translate: 4px 0;
+  }
 }
 
 .hero {
@@ -1457,6 +1561,100 @@ h3 {
   font-size: 15px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+/* ---------- проекты ---------- */
+
+.pr-group {
+  display: grid;
+  margin-top: clamp(24px, 3vw, 36px);
+  gap: 14px;
+}
+
+/* заголовок группы лежит прямо на пейзаже: нужна своя подложка, и она не тянется на всю ширину */
+.pr-group-h {
+  justify-self: start;
+  padding: 6px 16px;
+  border-radius: 999px;
+  color: var(--gold);
+  font-family: var(--font-accent-stack);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pr-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+}
+
+/* контейнер: единственная карточка группы занимает всю ширину и встаёт боком */
+.pr-card {
+  overflow: hidden;
+  container-type: inline-size;
+  scroll-margin-top: 16px;
+}
+
+.pr-in {
+  display: grid;
+  height: 100%;
+  grid-template-rows: auto 1fr;
+}
+
+.pr-shot {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-bottom: 1px solid var(--glass-line);
+}
+
+.pr-body {
+  display: grid;
+  align-content: start;
+  padding: 18px 20px 20px;
+  gap: 12px;
+  grid-template-rows: auto 1fr auto auto;
+}
+
+.pr-body h4 {
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.pr-about {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.pr-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+
+.pr-vpn {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--gold);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+@container (width >= 720px) {
+  .pr-in {
+    align-items: center;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto;
+  }
+
+  .pr-shot {
+    border-right: 1px solid var(--glass-line);
+    border-bottom: 0;
+  }
 }
 
 /* ---------- контакты ---------- */
@@ -2188,13 +2386,24 @@ h3 {
 }
 
 /* часам не хватает места: вкладки встают слева, кнопки справа */
-@media (width <= 940px) {
+@media (width <= 1080px) {
   .clock {
     display: none;
   }
 
   .top {
     grid-template-columns: auto 1fr;
+  }
+}
+
+/* четыре вкладки с кнопками не умещаются в строку: на вкладках остаётся только подпись */
+@media (701px <= width <= 880px) {
+  .tab {
+    padding: 0 12px;
+  }
+
+  .tab svg {
+    display: none;
   }
 }
 
@@ -2383,5 +2592,10 @@ h3 {
   *::after {
     animation: none !important;
     transition: none !important;
+  }
+
+  /* статичный кадр заката: солнце наполовину за холмами, а не уже зашло */
+  :root[data-tod='3'] .sun {
+    translate: 0 8vh;
   }
 }

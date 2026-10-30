@@ -3,7 +3,7 @@
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { PAGES, SITE } from '@/content/profile';
-import { loadAchievements, unlock } from '@/lib/achievements';
+import { loadAchievements, unlock, visitUnlocks } from '@/lib/achievements';
 import { setSenses, uiStore } from '@/lib/ui';
 
 import { CvButton } from './Actions';
@@ -79,7 +79,7 @@ const pageAnimations = (section: HTMLElement) =>
     .filter((a) => !(a instanceof CSSAnimation || a instanceof CSSTransition));
 
 /**
- * Оболочка одностраничного сайта: три страницы = три времени суток.
+ * Оболочка одностраничного сайта: вкладки = время суток (ночь, рассвет, день, закат).
  * Весь текст всех страниц есть в HTML (для поисковиков), на экране видна одна.
  */
 export function Shell({ pages }: { pages: ReactNode[] }) {
@@ -105,16 +105,10 @@ export function Shell({ pages }: { pages: ReactNode[] }) {
     setPage(i);
 
     const n = nav.current;
-    n.visited.add(i);
-    if (n.visited.size === PAGES.length) {
-      unlock('explorer');
-      if (performance.now() - n.born < 80_000) unlock('world80');
+    for (const id of visitUnlocks(i, n, PAGES.length)) {
+      unlock(id);
+      if (id === 'explorer' && performance.now() - n.born < 80_000) unlock('world80');
     }
-    if (i === 2) {
-      n.sawDay = true;
-      unlock('dawn');
-    }
-    if (i === 0 && n.sawDay) unlock('time');
     if (prev >= 0) {
       setHint(false);
       n.moves++;
@@ -220,7 +214,7 @@ export function Shell({ pages }: { pages: ReactNode[] }) {
     const clock = setInterval(() => {
       if (document.hidden) return;
       if (cur.current === 0 && (nightMs += 1000) >= 60_000) unlock('stars');
-      if (cur.current === 2 && (contactMs += 1000) >= 15_000) unlock('credits');
+      if (cur.current === 3 && (contactMs += 1000) >= 15_000) unlock('credits');
     }, 1000);
 
     const onScroll = (e: Event) => {

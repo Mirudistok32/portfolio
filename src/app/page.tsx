@@ -2,6 +2,7 @@ import { JsonLd } from '@/components/JsonLd';
 import { About } from '@/components/pages/About';
 import { Contacts } from '@/components/pages/Contacts';
 import { Experience } from '@/components/pages/Experience';
+import { Projects } from '@/components/pages/Projects';
 import { Shell } from '@/components/Shell';
 
 export default function Home() {
@@ -12,6 +13,7 @@ export default function Home() {
         pages={[
           <About key="about" />,
           <Experience key="experience" />,
+          <Projects key="projects" />,
           <Contacts key="contacts" />,
         ]}
       />

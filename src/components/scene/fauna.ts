@@ -2,7 +2,8 @@
  * Живность пейзажа. Спрайты — строки пикселей, каждый кадр рисуются в живые холсты слоёв:
  * дальний (стая на гребне, летучие мыши), средний (мельница, дым, окна), передний (сова, стадо
  * с пастухом, ёжик, петух, пчёлы, бабочки) и экранный (журавли, голубь, вспугнутые птицы).
- * Кто виден, решает время суток: сова и мыши ночью, ёжик и журавли на рассвете, пчёлы и голубь днём.
+ * Кто виден, решает время суток: сова и мыши ночью, ёжик и журавли на рассвете, пчёлы и бабочки днём,
+ * стадо и голубь днём и на закате. Таблица «зверь → время суток» — в tests/unit/fauna.test.ts.
  */
 
 import { type Box, type Ctx, type Dims, type Geo, OFF, type Pt, S } from './draw';
@@ -27,6 +28,7 @@ export interface Live {
   night: number;
   dawn: number;
   day: number;
+  dusk: number;
 }
 
 export interface LiveCtx {
@@ -321,10 +323,15 @@ const pad = (b: Box, p: number): Box => ({
 
 /** Сколько длится вой стаи после клика по Луне. */
 const HOWL = 7000;
+/** За сколько стадо доходит на закате с луга до плетня, мс. */
+const HOME = 18000;
+const WINDOW_LIT = '#FFD27A';
 
 interface Cow {
   from: number;
   to: number;
+  /** Место у плетня на закате. */
+  home: number;
   pal: Pal;
   /** Сдвиг от своего места на лугу: коровы понемногу переходят с места на место. */
   off: number;
@@ -363,6 +370,15 @@ interface Mover {
   vx: number;
   vy: number;
   born: number;
+}
+interface Flight {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+  born: number;
+  dur: number;
+  n: number;
 }
 
 export function createFauna(o: {
@@ -407,8 +423,10 @@ export function createFauna(o: {
   let smoke: (Mover & { max: number })[] = [];
   let herd: Cow[] = [];
   let walk = 1;
+  /** Путь стада с луга к плетню на закате: 0 — на лугу, 1 — дошли. */
+  let home = 0;
   let lookUntil = 0;
-  const shep = { from: 0, to: 0, nextNote: 0, notes: [] as Mover[] };
+  const shep = { from: 0, to: 0, home: 0, nextNote: 0, notes: [] as Mover[] };
   const hog = { x: 0, from: 0, to: 0, pauseUntil: 0, nextPause: 0, curl: 0 };
   const cock = { crowAt: -1e9, nextCrow: 0 };
   let bees: Bee[] = [];
@@ -422,6 +440,15 @@ export function createFauna(o: {
   let nextPigeon = 0;
   let letter: Mover | null = null;
   let birds: Mover[] = [];
+  let flights: Flight[] = [];
+  let nextFlight = 0;
+
+  /** Когда загорится окно: ночью почти сразу, на закате по одному, чтобы это было видно. */
+  const lightsUp = (t: number) => {
+    if (o.reduce) return 0;
+    if (page === 3) return t + 1500 + Math.random() * 12000;
+    return page === 0 ? t + 300 + Math.random() * 2600 : 0;
+  };
 
   function reset(dims: Dims, g: Geo, ew: number, eh: number) {
     d = dims;
@@ -442,11 +469,12 @@ export function createFauna(o: {
       }
     farDirty = true;
     const now = performance.now();
-    litAt = g.windows.map(() => (page === 0 && !o.reduce ? now + 600 + Math.random() * 2600 : 0));
+    litAt = g.windows.map(() => lightsUp(now));
     smoke = [];
     herd = [0.47, 0.6, 0.73].map((to, i) => ({
       from: fx(0.2 - i * 0.07),
       to: fx(to),
+      home: fx(0.8 + i * 0.08),
       pal: i === 1 ? COW_BROWN : COW_BW,
       off: 0,
       goal: 0,
@@ -459,6 +487,7 @@ export function createFauna(o: {
     }));
     shep.from = fx(-0.02);
     shep.to = fx(0.4);
+    shep.home = fx(0.7);
     shep.notes = [];
     hog.from = fx(0.32);
     hog.to = fx(0.64);
@@ -484,20 +513,24 @@ export function createFauna(o: {
     letter = null;
     flock = null;
     birds = [];
+    flights = [];
   }
 
   function setPage(p: number, t: number, first: boolean) {
     page = p;
-    if (p === 0) litAt = litAt.map(() => (o.reduce ? 0 : t + 300 + Math.random() * 2600));
+    if (p === 3) nextFlight = t + 2500;
+    if (p === 0 || p === 3) litAt = litAt.map(() => lightsUp(t));
+    if (o.reduce) home = p === 3 ? 1 : 0;
     if (p === 1) {
       walk = o.reduce ? 1 : 0;
+      home = 0;
       hog.x = hog.from + u(8);
       hog.nextPause = t + 6000;
       cock.crowAt = t + 1700;
       cock.nextCrow = t + 25000;
       nextFlock = t + 4500;
     }
-    if (p === 2) {
+    if (p >= 2) {
       walk = 1;
       hideUntil = t + 1400;
       nextPigeon = t + 6000;
@@ -545,6 +578,19 @@ export function createFauna(o: {
 
   /* ---------- средний план: окна, дым из труб, мельница ---------- */
 
+  /** На закате огонь в окнах горит поверх дневного пейзажа: тёмное окно не закрашиваем. */
+  function duskWindows(c: Ctx, L: Live, t: number) {
+    c.globalAlpha = L.dusk;
+    geo!.windows.forEach((w, i) => {
+      if (t < litAt[i]) return;
+      c.fillStyle = 'rgba(255,196,96,.4)';
+      c.fillRect(w.x0 - 1, w.y0 - 1, w.x1 - w.x0 + 2, w.y1 - w.y0 + 2);
+      c.fillStyle = WINDOW_LIT;
+      c.fillRect(w.x0, w.y0, w.x1 - w.x0, w.y1 - w.y0);
+    });
+    c.globalAlpha = 1;
+  }
+
   function mid(c: Ctx, L: Live, t: number, dt: number, lum: number) {
     const g = geo!;
     c.clearRect(0, 0, c.canvas.width, c.canvas.height);
@@ -562,18 +608,20 @@ export function createFauna(o: {
       });
       c.globalAlpha = 1;
     }
+    if (L.dusk > 0.02) duskWindows(c, L, t);
+    // К вечеру топят печи: дым гуще, чаще и крупнее
     if (!o.reduce)
       for (const ch of g.chimneys)
-        if (smoke.length < 48 && Math.random() < dt / 420)
+        if (smoke.length < 48 + 72 * L.dusk && Math.random() < dt / (420 - 280 * L.dusk))
           smoke.push({
             x: ch.x,
             y: ch.y,
             vx: 0.003 + Math.random() * 0.003,
             vy: -(0.005 + Math.random() * 0.003),
             born: t,
-            max: 3000 + Math.random() * 2500,
+            max: (3000 + Math.random() * 2500) * (1 + 0.5 * L.dusk),
           });
-    const sa = 0.3 + 0.45 * lum;
+    const sa = 0.3 + 0.45 * lum + 0.25 * L.dusk;
     for (let i = smoke.length - 1; i >= 0; i--) {
       const p = smoke[i];
       const q = (t - p.born) / p.max;
@@ -585,7 +633,7 @@ export function createFauna(o: {
       p.y += p.vy * dt;
       c.fillStyle =
         L.night > 0.5 ? `rgba(70,64,92,${(1 - q) * sa})` : `rgba(236,234,242,${(1 - q) * sa})`;
-      const z = 1 + Math.floor(q * 2.5);
+      const z = 1 + Math.floor(q * (2.5 + 2 * L.dusk));
       c.fillRect(p.x | 0, p.y | 0, z, z);
     }
     if (g.mill) {
@@ -678,11 +726,15 @@ export function createFauna(o: {
       if (wake > 0.5) hCock.box = pad(b, 2);
     }
 
-    // Стадо: на рассвете идёт от околицы на луг, днём пасётся; пастух играет на дудочке
+    // Стадо: на рассвете идёт от околицы на луг, днём пасётся, на закате уходит к плетню у костра;
+    // пастух играет на дудочке
     if (page === 1 && walk < 1 && !o.reduce) walk = Math.min(1, walk + dt / 45000);
-    if (page === 2) walk = 1;
+    if (page >= 2) walk = 1;
+    if (!o.reduce) home = clamp(home + (page === 3 ? dt : -dt) / HOME);
     const p = easeOut(walk);
-    const walking = walk < 1;
+    const h = easeOut(home);
+    const walking = walk < 1 || (home > 0 && home < 1);
+    const back = home > 0 && page !== 3;
     herd.forEach((cow, i) => {
       cow.hit.box = null;
       if (wake < 0.02) return;
@@ -701,11 +753,11 @@ export function createFauna(o: {
           cow.nextHead = t + 5000 + Math.random() * 7000;
         }
       }
-      const x = Math.round(cow.from + (cow.to - cow.from) * p + cow.off);
+      const x = Math.round(cow.from + (cow.to - cow.from) * p + (cow.home - cow.to) * h + cow.off);
       const moving = walking || Math.abs(cow.goal - cow.off) > 0.5;
       const pose: Pose =
         t < cow.moo || t < lookUntil ? 'look' : moving || t < cow.headUp ? 'stand' : 'graze';
-      const flip = !walking && cow.dir < 0;
+      const flip = back || (!walking && cow.dir < 0);
       const P = shade(cow.pal, lum);
       c.globalAlpha = wake;
       const b = put(c, COW[pose][moving ? (x / (2 * s)) & 1 : 0], P, x, at(x) + 2, s, flip);
@@ -719,7 +771,7 @@ export function createFauna(o: {
       if (wake > 0.5) cow.hit.box = pad(b, 2);
     });
     if (wake > 0.02) {
-      const x = Math.round(shep.from + (shep.to - shep.from) * p);
+      const x = Math.round(shep.from + (shep.to - shep.from) * p + (shep.home - shep.to) * h);
       c.globalAlpha = wake;
       const b = put(
         c,
@@ -728,6 +780,7 @@ export function createFauna(o: {
         x,
         at(x) + 2,
         s,
+        back,
       );
       if (!walking && !o.reduce && t > shep.nextNote) {
         shep.notes.push({ x: b.x1 + s, y: b.y0 + 2 * s, vx: 0, vy: 0, born: t });
@@ -773,13 +826,14 @@ export function createFauna(o: {
       if (L.dawn > 0.5 && fade > 0.5) hHog.box = pad(b, 3);
     }
 
-    // Пчёлы: летают от колоды к цветам, увязываются за курсором, после смены страницы прячутся
+    // Пчёлы: летают от колоды к цветам, увязываются за курсором, после смены страницы прячутся.
+    // Вне дневной вкладки они уходят в колоду и на курсор и клик не вылетают
     const H = g.hive;
     if (H && bees.length && L.day > 0.02) {
-      if (ptr && Math.hypot(ptr.x - H.x, ptr.y - H.y) < u(26))
+      const hiding = t < hideUntil || page !== 2;
+      if (!hiding && ptr && Math.hypot(ptr.x - H.x, ptr.y - H.y) < u(26))
         chaseUntil = Math.max(chaseUntil, t + 1500);
-      const chase = t < chaseUntil;
-      const hiding = t < hideUntil;
+      const chase = !hiding && t < chaseUntil;
       const lure = ptr ?? { x: H.x, y: H.y - u(8) };
       const pick = () =>
         beeFlowers.length && Math.random() < 0.8
@@ -837,9 +891,10 @@ export function createFauna(o: {
       c.globalAlpha = 1;
     }
 
-    // Бабочки над цветами
-    if (L.day > 0.02 && moths.length) {
-      c.globalAlpha = L.day;
+    // Бабочки над цветами: гаснут к ночи и к закату
+    const flutter = L.day * (1 - L.dusk);
+    if (flutter > 0.02 && moths.length) {
+      c.globalAlpha = flutter;
       for (const m of moths) {
         const x = m.hx + Math.sin(t / 1700 + m.ph) * u(10) + Math.sin(t / 530 + m.ph * 2) * u(2);
         const y = m.hy - u(3) - Math.abs(Math.sin(t / 650 + m.ph)) * u(6);
@@ -849,11 +904,43 @@ export function createFauna(o: {
     }
   }
 
-  /* ---------- небо поверх пейзажа: журавли, голубь, вспугнутые птицы ---------- */
+  /* ---------- небо поверх пейзажа: журавли, голубь, вспугнутые птицы, стаи на закате ---------- */
+
+  /** На закате стаи летят со стороны солнца и садятся на верхушки леса: там и растворяются. */
+  function homing(c: Ctx, L: Live, t: number) {
+    if (page === 3 && L.dusk > 0.6 && t > nextFlight) {
+      flights.push({
+        x0: EW + 8,
+        y0: EH * (0.05 + Math.random() * 0.14),
+        x1: EW * (0.08 + Math.random() * 0.5),
+        y1: EH * (0.68 + Math.random() * 0.06),
+        born: t,
+        dur: 10000 + Math.random() * 3000,
+        n: 5 + ((Math.random() * 5) | 0),
+      });
+      nextFlight = t + 6000 + Math.random() * 3000;
+    }
+    flights = L.dusk < 0.02 ? [] : flights.filter((f) => t - f.born < f.dur);
+    for (const f of flights) {
+      const q = (t - f.born) / f.dur;
+      const x = f.x0 + (f.x1 - f.x0) * q;
+      const y = f.y0 + (f.y1 - f.y0) * q;
+      c.globalAlpha = L.dusk * clamp((1 - q) / 0.12);
+      // Вразнобой, а не клином: это не журавли
+      for (let k = 0; k < f.n; k++) {
+        const bx = x + ((k * 11) % 7) * 4 * s + k * 3 * s;
+        const by = y + ((k * 5) % 7) * 2 * s + Math.sin(t / 700 + k * 1.9) * 1.2;
+        put(c, BIRD[((t / 110 + k * 0.6) | 0) & 1], BIRD_PAL, Math.round(bx), Math.round(by), s);
+      }
+    }
+    c.globalAlpha = 1;
+  }
 
   function sky(c: Ctx, L: Live, t: number, dt: number) {
     hPigeon.box = null;
     if (o.reduce) return;
+
+    homing(c, L, t);
 
     if (!flock && page === 1 && L.dawn > 0.6 && t > nextFlock)
       flock = { x: EW + 8, y: Math.round(EH * (0.1 + Math.random() * 0.1)) };
@@ -876,8 +963,9 @@ export function createFauna(o: {
     }
 
     // Голубь несёт письмо в карточку Telegram: летит поверх панелей, ныряет в просвет справа
-    // от карточки и пропадает за ней. Если карточки на экране нет, просто пролетает мимо
-    if (!pigeon && page === 2 && L.day > 0.6 && t > nextPigeon) {
+    // от карточки и пропадает за ней. Если карточки нет (на «Проектах» или за краем экрана), просто
+    // пролетает мимо
+    if (!pigeon && page >= 2 && L.day > 0.6 && t > nextPigeon) {
       const r = o.mailbox();
       const mail = !!r && r.width > 0 && r.bottom > 0 && r.top < innerHeight;
       const y = Math.round(EH * (0.13 + Math.random() * 0.05));
@@ -914,7 +1002,7 @@ export function createFauna(o: {
         }
         if (dist < 1.5) P.path.shift();
         if (!P.path.length) {
-          if (P.mail && page === 2) o.delivered();
+          if (P.mail && page >= 2) o.delivered();
           pigeon = null;
           nextPigeon = t + 28000 + Math.random() * 14000;
         }
@@ -931,7 +1019,7 @@ export function createFauna(o: {
           !!P.caught,
         );
         c.globalAlpha = 1;
-        if (!P.caught) hPigeon.box = pad(b, 3);
+        if (!P.caught && L.day > 0.5) hPigeon.box = pad(b, 3);
         else if (P.x > EW + 10 || P.y < -10) {
           pigeon = null;
           nextPigeon = t + 40000;

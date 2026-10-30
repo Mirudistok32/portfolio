@@ -4,11 +4,12 @@ import { resolve } from 'node:path';
 import { expect, type Page } from '@playwright/test';
 
 // Playwright грузит тесты как CommonJS (в package.json нет "type": "module") — import.meta нет
-const OUT = resolve(__dirname, '../../out/index.html');
+export const OUT = resolve(__dirname, '../../out/index.html');
 
 export const PAGES = [
   { id: 'about', label: 'Обо мне' },
   { id: 'experience', label: 'Опыт' },
+  { id: 'projects', label: 'Проекты' },
   { id: 'contacts', label: 'Контакты' },
 ];
 
@@ -36,13 +37,16 @@ export async function open(page: Page, hash = '') {
 export const stored = (page: Page, key: string) =>
   page.evaluate((k) => JSON.parse(localStorage.getItem(k) ?? '[]') as string[], key);
 
-/** Дождаться конечных анимаций (въезд блоков, появление тостов); бесконечные — сияние, костры — не ждём. */
+/**
+ * Дождаться коротких анимаций (въезд блоков, появление тостов, смена неба). Бесконечные — сияние,
+ * костры — и долгий закат, 14–20 с на солнце и подсветку облаков, не ждём.
+ */
 export const settle = (page: Page) =>
   page.evaluate(() =>
     Promise.all(
       document
         .getAnimations()
-        .filter((a) => a.effect?.getComputedTiming().endTime !== Infinity)
+        .filter((a) => Number(a.effect?.getComputedTiming().endTime) < 5000)
         .map((a) => a.finished.catch(() => {})),
     ),
   );

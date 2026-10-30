@@ -1,14 +1,17 @@
 import { achStore, markFound, unlock } from '@/lib/achievements';
+import { lightAt, TOD } from '@/lib/daylight';
 import { burst } from '@/lib/fx';
 import { toast } from '@/lib/toast';
 import { setNear } from '@/lib/ui';
 
 import {
   type Box,
+  CLOUD_DUSK,
   type Ctx,
   type Dims,
   disc,
   drawAurora,
+  drawCloudGlow,
   drawClouds,
   drawCosmos,
   drawFar,
@@ -28,10 +31,20 @@ import {
 } from './draw';
 import { createFauna, type Hit, type Layer, type LiveCtx, season } from './fauna';
 
-/** Страница → время суток: ночь, рассвет, день. */
-const TOD = [0, 0.38, 1];
 /** На сколько экрана поднимается земля под ногами, когда страница докручена до конца. */
 const LIFT = 0.34;
+/** За сколько на закате разгораются костры и слетаются светлячки, мс. */
+const KINDLE = 9000;
+/** Сколько светлячков летает ночью; остальные прилетают на луг только на закате. */
+const NIGHT_FLIES = 12;
+/** Сколько звёзд проступает на закате, когда начинается и за сколько заканчивается, мс. */
+const EVENING_STARS = 24;
+const STARS_FROM = 4000;
+const STARS_FOR = 14000;
+/** Закатное солнце: 74vw и --sun-x из globals.css, доли ширины экрана. */
+const DUSK_SUN_X = 0.97;
+/** Сдвиг слоя на «Контактах» за вкладку: --sx в setPage, доля ширины экрана. */
+const PAGE_SHIFT = 0.22;
 /** Клик или наведение по интерфейсу не должны срабатывать как поиск тайника за ним. */
 const UI_SELECTOR = 'a, button, .glass, .solid, h1, h2, p, dl, ul, .xpdock, .tabs';
 const LEAF_COLORS = ['#C9762E', '#E0A33A', '#8DB04A', '#B5482E', '#D9C04A'];
@@ -69,6 +82,13 @@ interface Star {
   ph: number;
   sp: number;
   bright: boolean;
+}
+/** Точка закатной дорожки: w — сила, у самого солнца она больше. */
+interface Glint {
+  x: number;
+  y: number;
+  ph: number;
+  w: number;
 }
 interface Fly {
   x: number;
@@ -118,6 +138,8 @@ export function createScene(root: HTMLElement): SceneEngine {
   const cv = {
     cosmos: one<HTMLCanvasElement>('[data-c="cosmos"]'),
     clouds: one<HTMLCanvasElement>('[data-c="clouds"]'),
+    cloudsD: one<HTMLCanvasElement>('[data-c="cloudsD"]'),
+    cloudsL: one<HTMLCanvasElement>('[data-c="cloudsL"]'),
     sun: one<HTMLCanvasElement>('[data-c="sun"]'),
     farN: one<HTMLCanvasElement>('[data-c="farN"]'),
     farD: one<HTMLCanvasElement>('[data-c="farD"]'),
@@ -202,6 +224,8 @@ export function createScene(root: HTMLElement): SceneEngine {
     skies.forEach((c) => size(c, d.WS, d.H));
     size(cv.cosmos, d.WS, d.H);
     size(cv.clouds, d.WS, Math.ceil(d.H * 0.45));
+    size(cv.cloudsD, d.WS, Math.ceil(d.H * 0.45));
+    size(cv.cloudsL, d.WS, Math.ceil(d.H * 0.45));
     size(cv.farN, d.W, d.HFAR);
     size(cv.farD, d.W, d.HFAR);
     size(cv.midN, d.W, d.HMID);
@@ -247,6 +271,7 @@ export function createScene(root: HTMLElement): SceneEngine {
       () => drawMid(ctx2d(cv.midN), PAL.mid.n, d, geo),
       () => {
         drawFore(ctx2d(cv.foreN), PAL.fore.n, d, geo);
+        placeGlints();
         fgc = ctx2d(cv.fg);
         live = { far: ctx2d(cv.farFx), mid: ctx2d(cv.midFx), fore: fgc, fx: fxc };
         fauna.reset(d, geo, EW, EH);
@@ -256,7 +281,10 @@ export function createScene(root: HTMLElement): SceneEngine {
       () => drawGround(ctx2d(cv.groundN), PAL.ground.n, d),
       () => drawSky(ctx2d(skies[1]), SKIES[1], d.WS, d.H),
       () => drawSky(ctx2d(skies[2]), SKIES[2], d.WS, d.H),
+      () => drawSky(ctx2d(skies[3]), SKIES[3], d.WS, d.H),
       () => drawClouds(ctx2d(cv.clouds), d),
+      () => drawClouds(ctx2d(cv.cloudsD), d, CLOUD_DUSK),
+      () => drawCloudGlow(ctx2d(cv.cloudsL), d),
       () => drawHaze(ctx2d(cv.haze), d),
       () => drawSun(ctx2d(cv.sun)),
       () => drawFar(ctx2d(cv.farD), PAL.far.d, d, null),
@@ -280,6 +308,8 @@ export function createScene(root: HTMLElement): SceneEngine {
   let EW = 0;
   let EH = 0;
   let stars: Star[] = [];
+  let evening: Star[] = [];
+  let glints: Glint[] = [];
   let flies: Fly[] = [];
   let leaves: Leaf[] = [];
   let comet: Comet | null = null;
@@ -289,6 +319,8 @@ export function createScene(root: HTMLElement): SceneEngine {
   const fireParticles: Particle[][] = [[], []];
   const flare = [0, 0];
   const eyes = { until: 0, next: 9000, on: false };
+  let duskSince = 0;
+  let duskGlow = 0;
 
   const newLeaf = (r: () => number = Math.random, anywhere = false): Leaf => ({
     x: r() * EW,
@@ -312,31 +344,58 @@ export function createScene(root: HTMLElement): SceneEngine {
       sp: 6.28 / (3000 + r() * 5000),
       bright: r() > 0.85,
     }));
-    flies = Array.from({ length: 12 }, () => ({
+    // Только верх неба: ниже уже светло, а холмы на закате дневные
+    evening = stars.filter((s) => s.y < EH * 0.34).slice(0, EVENING_STARS);
+    flies = Array.from({ length: NIGHT_FLIES + 16 }, (_, i) => ({
       x: r() * EW,
-      y: EH * (0.62 + r() * 0.33),
+      y: EH * (i < NIGHT_FLIES ? 0.62 + r() * 0.33 : 0.85 + r() * 0.1),
       ph: r() * 6.28,
       vx: (r() - 0.5) * 0.08,
     }));
     leaves = Array.from({ length: FALL.n }, () => newLeaf(r, true));
   }
 
+  /** Дорожка лежит на воде прямо под солнцем: слои сдвинуты вкладкой на разную глубину. */
+  function placeGlints() {
+    const depth = (l: HTMLElement) => Number(l.parentElement!.dataset.depth);
+    const shift = 3 * PAGE_SHIFT * innerWidth;
+    const sunX = DUSK_SUN_X * innerWidth - depth(lSky) * shift + 44;
+    const cx = (sunX + depth(lFore) * shift + 64) / S;
+    const half = d.VW * 0.16;
+    const r = rng(41);
+    glints = [];
+    for (const [x, y] of geo.water) {
+      const w = 1 - Math.abs(x - cx) / half;
+      if (w > 0 && r() < w) glints.push({ x, y, ph: x * 0.7 + y * 2.1, w });
+    }
+  }
+
+  function drawStar(s: Star, a: number, w: number) {
+    fxc.fillStyle = `rgba(237,230,214,${a})`;
+    fxc.fillRect(s.x, s.y, 1, 1);
+    if (s.bright && w > 0.8) {
+      fxc.fillStyle = `rgba(237,230,214,${a * 0.45})`;
+      fxc.fillRect(s.x - 1, s.y, 3, 1);
+      fxc.fillRect(s.x, s.y - 1, 1, 3);
+    }
+  }
+
   function drawFire(
     c: Ctx,
     f: { x: number; y: number },
     t: number,
-    night: number,
+    glow: number,
     isFlare: boolean,
   ) {
-    const sc = (0.55 + 0.45 * night) * (isFlare ? 1.6 : 1) * d.k;
-    if (night > 0.05) {
+    const sc = (0.55 + 0.45 * glow) * (isFlare ? 1.6 : 1) * d.k;
+    if (glow > 0.05) {
       const w = 0.85 + 0.15 * Math.sin(t / 90 + f.x) * Math.sin(t / 37);
       for (const [rad, a] of [
         [26, 0.035],
         [17, 0.05],
         [10, 0.07],
       ]) {
-        c.fillStyle = `rgba(242,140,56,${a * night * w})`;
+        c.fillStyle = `rgba(242,140,56,${a * glow * w})`;
         disc(c, f.x, f.y - 2, Math.round(rad * d.k * w));
       }
     }
@@ -361,22 +420,21 @@ export function createScene(root: HTMLElement): SceneEngine {
 
   function frame(t: number) {
     tod += (todTarget - tod) * 0.06;
-    const night = Math.max(0, 1 - tod * 1.25);
-    const day = Math.max(0, (tod - 0.45) / 0.55);
-    const dawn = Math.max(0, 1 - Math.abs(tod - TOD[1]) / 0.3);
+    const light = lightAt(tod);
+    const { night, dawn, day } = light;
+    // С заката сразу в ночь время суток пролетает его за 6 кадров: огни гаснут так же, как перетекает небо
+    duskGlow =
+      reduce || light.dusk > duskGlow ? light.dusk : duskGlow + (light.dusk - duskGlow) * 0.06;
+    const dusk = duskGlow;
+    const kindle = reduce ? 1 : Math.max(0, Math.min(1, (t - duskSince) / KINDLE));
+    // На закате костёр горит сильнее ночного: его приглушает наложение .dusk
+    const blaze = Math.max(night, 2 * dusk * kindle);
 
     fxc.clearRect(0, 0, EW, EH);
     if (night > 0.02) {
       for (const s of stars) {
         const w = 0.5 + 0.5 * Math.sin(t * s.sp + s.ph);
-        const a = night * (0.15 + 0.85 * w * w * w);
-        fxc.fillStyle = `rgba(237,230,214,${a})`;
-        fxc.fillRect(s.x, s.y, 1, 1);
-        if (s.bright && w > 0.8) {
-          fxc.fillStyle = `rgba(237,230,214,${a * 0.45})`;
-          fxc.fillRect(s.x - 1, s.y, 3, 1);
-          fxc.fillRect(s.x, s.y - 1, 1, 3);
-        }
+        drawStar(s, night * (0.15 + 0.85 * w * w * w), w);
       }
       if (!comet && night > 0.45 && t > nextComet && !reduce)
         comet = {
@@ -387,20 +445,35 @@ export function createScene(root: HTMLElement): SceneEngine {
           life: 0,
           max: 72,
         };
-      for (const f of flies) {
+    }
+    // Первые звёзды проступают по одной и слабо мерцают: при reduced motion они уже на месте
+    if (dusk > 0.02) {
+      const dim = reduce ? 1 : (t - duskSince - STARS_FROM) / STARS_FOR;
+      evening.forEach((s, i) => {
+        const come = Math.max(0, Math.min(1, dim * evening.length - i));
+        if (!come) return;
+        const w = 0.5 + 0.5 * Math.sin(t * s.sp + s.ph);
+        drawStar(s, dusk * come * (0.55 + 0.45 * w), w);
+      });
+    }
+    // Светлячки: ночью летают все сразу, на закате появляются по одному
+    if (night > 0.02 || dusk > 0.02)
+      flies.forEach((f, i) => {
         f.x += f.vx + Math.sin(t / 900 + f.ph) * 0.05;
         f.y += Math.sin(t / 1300 + f.ph) * 0.04;
         if (f.x < 0) f.x = EW;
         if (f.x > EW) f.x = 0;
-        const a = night * (0.45 + 0.55 * Math.sin(t / 380 + f.ph));
+        const come = Math.max(0, Math.min(1, kindle * flies.length - i));
+        const a =
+          Math.max(i < NIGHT_FLIES ? night : 0, dusk * come) *
+          (0.45 + 0.55 * Math.sin(t / 380 + f.ph));
         if (a > 0.05) {
           fxc.fillStyle = `rgba(200,240,122,${a * 0.22})`;
           fxc.fillRect((f.x | 0) - 1, (f.y | 0) - 1, 3, 3);
           fxc.fillStyle = `rgba(214,250,140,${a})`;
           fxc.fillRect(f.x | 0, f.y | 0, 1, 1);
         }
-      }
-    }
+      });
     if (comet) {
       comet.life++;
       comet.x += comet.vx;
@@ -425,7 +498,7 @@ export function createScene(root: HTMLElement): SceneEngine {
         nextComet = t + 7000 + Math.random() * 9000;
       }
     }
-    fxc.globalAlpha = 0.45 + 0.55 * tod;
+    fxc.globalAlpha = 0.45 + 0.55 * Math.min(1, tod);
     for (let i = 0; i < leaves.length; i++) {
       const l = leaves[i];
       l.y += l.vy;
@@ -442,7 +515,7 @@ export function createScene(root: HTMLElement): SceneEngine {
     c.clearRect(0, 0, cv.fg.width, cv.fg.height);
     geo.fires.forEach((f, n) => {
       const isFlare = t < flare[n];
-      drawFire(c, f, t, night, isFlare);
+      drawFire(c, f, t, blaze, isFlare);
       const P = fireParticles[n];
       if (P.length < (isFlare ? 22 : 10) && Math.random() < 0.35)
         P.push({
@@ -463,7 +536,7 @@ export function createScene(root: HTMLElement): SceneEngine {
           continue;
         }
         const a = 1 - q.life / q.max;
-        if (night > 0.4) {
+        if (blaze > 0.4) {
           c.fillStyle = `rgba(242,${120 + ((a * 80) | 0)},56,${a})`;
           c.fillRect(q.x | 0, q.y | 0, 1, 1);
         } else {
@@ -481,10 +554,26 @@ export function createScene(root: HTMLElement): SceneEngine {
         }
         const [x, y] = geo.water[s.i];
         const a = Math.sin((Math.PI * s.life) / s.max);
-        c.fillStyle = night > 0.5 ? `rgba(190,210,255,${a * 0.8})` : `rgba(255,255,255,${a})`;
+        c.fillStyle =
+          night > 0.5
+            ? `rgba(190,210,255,${a * 0.8})`
+            : dusk > 0.5
+              ? `rgba(255,214,170,${a})`
+              : `rgba(255,255,255,${a})`;
         c.fillRect(x, y, 1, 1);
       }
-    if (day > 0.05 && geo.dew.length)
+    // Закатная дорожка разгорается вместе с кострами, блики бегут по воде
+    if (dusk > 0.02)
+      for (const g of glints) {
+        const w = 0.5 + 0.5 * Math.sin(t / 240 + g.ph);
+        const a = dusk * kindle * g.w * (0.25 + 0.75 * w);
+        if (a < 0.05) continue;
+        c.fillStyle = `rgba(255,232,160,${a})`;
+        c.fillRect(g.x, g.y, 1, 1);
+      }
+    // Роса блестит только под высоким солнцем
+    const dewLight = day * (1 - dusk);
+    if (dewLight > 0.05 && geo.dew.length)
       for (const s of dewSparks) {
         if (++s.life > s.max || s.i >= geo.dew.length) {
           s.i = (Math.random() * geo.dew.length) | 0;
@@ -493,10 +582,10 @@ export function createScene(root: HTMLElement): SceneEngine {
         }
         const [x, y] = geo.dew[s.i];
         const a = Math.sin((Math.PI * s.life) / s.max);
-        c.fillStyle = `rgba(255,255,255,${a * day})`;
+        c.fillStyle = `rgba(255,255,255,${a * dewLight})`;
         c.fillRect(x, y, 1, 1);
         if (a > 0.8) {
-          c.fillStyle = `rgba(220,248,255,${(a - 0.8) * 2 * day})`;
+          c.fillStyle = `rgba(220,248,255,${(a - 0.8) * 2 * dewLight})`;
           c.fillRect(x - 1, y, 3, 1);
           c.fillRect(x, y - 1, 1, 3);
         }
@@ -522,7 +611,7 @@ export function createScene(root: HTMLElement): SceneEngine {
       c.fillRect(x + gap, y, 1, 1);
     }
     if (live) {
-      fauna.frame({ t, tod, night, dawn, day }, live);
+      fauna.frame({ t, tod, night, dawn, day, dusk }, live);
       syncLive();
     }
   }
@@ -648,13 +737,20 @@ export function createScene(root: HTMLElement): SceneEngine {
     }
   }
 
+  /** Из накрывающих точку — самый маленький: рамка ручья шире экрана и заходит на зверей и улей на берегу. */
   function spotAt(x: number, y: number) {
+    let best: Spot | null = null;
+    let least = Infinity;
     for (const s of spots) {
       if (s.off) continue;
       const r = s.el.getBoundingClientRect();
-      if (x >= r.left - 6 && x <= r.right + 6 && y >= r.top - 6 && y <= r.bottom + 6) return s;
+      if (x < r.left - 6 || x > r.right + 6 || y < r.top - 6 || y > r.bottom + 6) continue;
+      if (r.width * r.height < least) {
+        best = s;
+        least = r.width * r.height;
+      }
     }
-    return null;
+    return best;
   }
 
   const isUI = (el: EventTarget | null) => el instanceof Element && !!el.closest(UI_SELECTOR);
@@ -826,6 +922,8 @@ export function createScene(root: HTMLElement): SceneEngine {
       cur = page;
       todTarget = TOD[page] ?? 0;
       fauna.setPage(page, performance.now(), firstPage);
+      // Вернулись, пока закат не успел погаснуть: продолжаем, а не разгораемся заново
+      if (page === 3 && duskGlow < 0.02) duskSince = performance.now();
       // Без анимаций кадр не крутится: живой слой перерисовывается сразу в новом времени суток
       if (firstPage || reduce) tod = todTarget;
       if (reduce && live) frame(performance.now());

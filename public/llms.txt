@@ -10,6 +10,15 @@
 - Учёт рабочего времени, Middle Frontend (2019).
 - Фриланс, верстальщик (2018 — 2019).
 
+## Проекты
+Идея, решения и приёмка — мои, код писал вместе с Claude Code. Сайты на Vercel могут работать только через VPN.
+- Кино как способ мышления (курс): https://mirudistok32.github.io/film-course/. Курс визуального мышления на материале кино: 13 уровней, 100 фильмов. Vue 3, TypeScript, Pinia, Vite. Код: https://github.com/Mirudistok32/film-course
+- Mindforge (курс, на Vercel): https://mindforge-beryl.vercel.app/. Тренажёр критического мышления: 13 уроков, 22 кейса, интервальное повторение. Next.js 16, React 19, Tailwind 4, IndexedDB. Репозиторий приватный.
+- Пастух в тумане (игра): https://mirudistok32.github.io/fog-shepherd/. Пиксельная игра про сбор стада в тумане: 12 уровней, стая по правилам boids. TypeScript, Vite, Canvas, Web Audio. Код: https://github.com/Mirudistok32/fog-shepherd
+- Мельник (игра): https://mirudistok32.github.io/miller/. Пиксельная головоломка про воду и жёлоба: генератор уровней из сида и отдельный решатель. TypeScript, Vite, Canvas, Web Audio. Код: https://github.com/Mirudistok32/miller
+- Голубиная почта (игра): https://mirudistok32.github.io/pigeon-post/. Пиксельная игра про полёт голубя с письмом: маршруты из сида, проходимость доказывает автопилот в тестах. TypeScript, Vite, Canvas, Web Audio. Код: https://github.com/Mirudistok32/pigeon-post
+- Fizkulture (приложение, на Vercel): https://fizkulture.vercel.app/. Приложение для тренировок по шагам: таймер, подходы, генератор тренировок. Next.js 16, React 19, Tailwind 4. Репозиторий приватный.
+
 ## Стек
 Next.js, React, TypeScript, MobX, Zustand, Redux, GraphQL, REST, Storybook, Jest, Vitest, GSAP, Electron, Docker, SEO (JSON-LD, Open Graph), Claude Code, Cursor, MCP.
 

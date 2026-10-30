@@ -23,7 +23,7 @@ if (!existsSync(INDEX)) {
 }
 mkdirSync(OUT, { recursive: true });
 
-const PAGES = ['about', 'experience', 'contacts'];
+const PAGES = ['about', 'experience', 'projects', 'contacts'];
 const SEASONS = ['winter', 'spring', 'summer', 'autumn'];
 const VIEWS = [
   { name: 'desktop', width: 1280, height: 800 },

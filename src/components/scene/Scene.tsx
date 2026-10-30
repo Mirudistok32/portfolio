@@ -8,6 +8,7 @@ import { createScene, type SceneEngine } from './engine';
  * Пиксельный пейзаж за контентом. Слои ночи и дня перетекают через opacity, параллакс — через transform.
  * data-depth — сдвиг за мышью и при смене страниц, data-lift — подъём при прокрутке страницы вниз.
  * Холсты farFx, midFx и fg перерисовываются каждый кадр: на них живут звери (fauna.ts).
+ * Закат: солнце и cloudsL ведёт CSS (globals.css), дорожка на воде и звёзды рисуются в engine.ts.
  */
 export function Scene({ page }: { page: number }) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -33,6 +34,7 @@ export function Scene({ page }: { page: number }) {
           <canvas className="sky-c s0" />
           <canvas className="sky-c s1" />
           <canvas className="sky-c s2" />
+          <canvas className="sky-c s3" />
           <div className="aurora">
             <canvas data-c="aur0" />
             <canvas data-c="aur1" />
@@ -42,6 +44,8 @@ export function Scene({ page }: { page: number }) {
             <canvas data-c="sun" width={22} height={22} />
           </div>
           <canvas className="clouds" data-c="clouds" />
+          <canvas className="clouds clouds-d" data-c="cloudsD" />
+          <canvas className="clouds clouds-l" data-c="cloudsL" />
         </div>
       </div>
       <div className="layer" data-depth="0.25" data-lift="0.62">
@@ -73,6 +77,7 @@ export function Scene({ page }: { page: number }) {
           <canvas className="ground day-c" data-c="groundD" />
         </div>
       </div>
+      <div className="dusk" />
       <canvas className="haze" data-c="haze" />
       <canvas className="fx" data-c="fx" />
       <div className="vignette" />

@@ -94,6 +94,44 @@ describe('секретные', () => {
   });
 });
 
+describe('переходы по вкладкам', () => {
+  const walk = async (pages: number[]) => {
+    const { visitUnlocks } = await fresh();
+    const seen = { visited: new Set<number>(), sawDay: false };
+    return pages.map((p) => visitUnlocks(p, seen, 4));
+  };
+
+  it('«Утро вечера мудренее» — на «Проектах», а не на «Контактах»', async () => {
+    expect(await walk([2])).toEqual([['dawn']]);
+    expect(await walk([3])).toEqual([[]]);
+  });
+
+  it('«Машина времени»: день считается и при переходе сразу на «Контакты»', async () => {
+    expect((await walk([3, 0])).at(-1)).toEqual(['time']);
+    expect((await walk([2, 0])).at(-1)).toEqual(['time']);
+    expect((await walk([0, 1, 0])).at(-1)).toEqual([]);
+  });
+
+  it('«Картограф» — только после всех четырёх вкладок', async () => {
+    expect((await walk([0, 1, 2])).flat()).not.toContain('explorer');
+    expect((await walk([0, 1, 2, 3])).at(-1)).toEqual(['explorer']);
+  });
+
+  it('открытые по старым условиям ачивки не пропадают, в панели — новые описания', async () => {
+    localStorage.setItem('pv2-ach', JSON.stringify(['dawn', 'time', 'explorer']));
+    const { ACHIEVEMENTS, achStore, cardOf, loadAchievements } = await fresh();
+    loadAchievements();
+    expect(achStore.get().got).toEqual(['dawn', 'time', 'explorer']);
+    const desc = (id: string) =>
+      cardOf(
+        ACHIEVEMENTS.find((a) => a.id === id)!,
+        true,
+      ).desc;
+    expect(desc('dawn')).toBe('Дождаться дня на странице «Проекты»');
+    expect(desc('explorer')).toBe('Посетить все страницы');
+  });
+});
+
 describe('прогресс после перезагрузки', () => {
   it('ачивки и тайники читаются из localStorage', async () => {
     const before = await fresh();

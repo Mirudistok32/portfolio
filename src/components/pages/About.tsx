@@ -6,7 +6,7 @@ import { ContactLinks, HrCard } from '@/components/ContactCards';
 import { Period } from '@/components/Period';
 import { Portrait } from '@/components/Portrait';
 import { RotWord } from '@/components/RotWord';
-import { FACTS, QUESTS, SITE } from '@/content/profile';
+import { FACTS, PROJECTS, QUESTS, SITE } from '@/content/profile';
 
 /** Витрина: всё главное на одной странице, остальные вкладки — подробности. */
 export function About() {
@@ -96,6 +96,36 @@ export function About() {
           <HrCard id="brief-hr" heading="h2" />
           <ContactLinks id="brief" />
         </div>
+        <section
+          className="card glass brief-projects"
+          data-s
+          aria-labelledby="brief-projects-title"
+        >
+          <div className="card-top">
+            <h2 className="card-h" id="brief-projects-title">
+              Проекты
+            </h2>
+            <a className="more" href="#projects">
+              Подробнее <span aria-hidden="true">→</span>
+            </a>
+          </div>
+          <ul className="showcase">
+            {PROJECTS.map((p) => (
+              <li key={p.id}>
+                <a href={`#project-${p.id}`}>
+                  <span className="tl-when">{p.group}</span>
+                  <b>
+                    {p.title}
+                    <span className="tl-go" aria-hidden="true">
+                      →
+                    </span>
+                  </b>
+                  <span className="tl-sum">{p.headline}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
       </div>
     </div>
   );
