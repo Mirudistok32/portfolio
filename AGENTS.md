@@ -69,8 +69,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## План
 
-- Файл: `PLAN.md`, журнал: `PLAN-LOG.md` (сейчас: вкладка «Проекты» и закат). Пункт —
-  `/next-task [N.M]`, прогресс — `/plan-status`.
+- Файл: `PLAN.md`, журнал: `PLAN-LOG.md` (сейчас плана нет). Пункт — `/next-task [N.M]`,
+  прогресс — `/plan-status`.
 - Гейт пункта: `npm run check:full`.
 - Коммиты: не коммитить, пользователь коммитит сам. Если попросили закоммитить — сообщение
   подробное: заголовок и тело с тем, что изменилось и зачем.
@@ -86,6 +86,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 | Вкладки, время суток, клавиатура                  | [src/components/Shell.tsx](src/components/Shell.tsx)                                     |
 | Пост-обработка сборки                             | [scripts/prepare-static.mjs](scripts/prepare-static.mjs)                                 |
 | Контраст токенов                                  | [scripts/contrast.mjs](scripts/contrast.mjs)                                             |
+| Принятые решения и что не закрыто                 | [docs/decisions.md](docs/decisions.md)                                                   |
 | Обязательные рекомендации (OWASP, WCAG…)          | `../agent-base/docs/principles.md` → «Стандарты»                                         |
 
 ## Нельзя
